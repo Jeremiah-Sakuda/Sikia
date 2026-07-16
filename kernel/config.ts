@@ -1,0 +1,10 @@
+import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
+
+export const ROOT_DIR = resolve(dirname(fileURLToPath(import.meta.url)), "..");
+export const SHELL_DIR = resolve(ROOT_DIR, "shell");
+export const USERLAND_DIR = resolve(ROOT_DIR, "userland");
+
+export const ALLOWLIST_GLOBS = ["userland/src/**"] as const;
+export const RETRY_LIMIT = 2;
+export const CODEX_TIMEOUT_MS = 180_000;

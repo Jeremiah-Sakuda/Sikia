@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sikia</title>
+  </head>
+  <body>
+    <main>
+      <h1>Sikia</h1>
+      <form id="request-form">
+        <label for="request">Request</label>
+        <textarea id="request" required></textarea>
+        <button type="submit">Run</button>
+      </form>
+      <pre id="events" aria-live="polite"></pre>
+      <iframe id="dashboard" src="/userland/" title="Dashboard"></iframe>
+    </main>
+    <script src="/app.js"></script>
+  </body>
+</html>

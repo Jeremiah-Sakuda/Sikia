@@ -1,0 +1,24 @@
+{
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx scripts/dev.ts",
+    "lint": "eslint shell/app.js",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "build:userland": "vite build --config userland/vite.config.ts",
+    "spike": "tsx scripts/spike.ts"
+  },
+  "dependencies": {
+    "express": "^5.1.0"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.3",
+    "@types/node": "^24.0.0",
+    "eslint": "^9.30.0",
+    "tsx": "^4.20.3",
+    "typescript": "^5.8.3",
+    "vite": "^6.1.0",
+    "vitest": "^3.2.4"
+  }
+}
