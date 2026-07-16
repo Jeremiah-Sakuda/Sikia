@@ -87,6 +87,7 @@ app.post("/revert/:sha", async (request: Request, response: Response) => {
     broadcast("reverted", { message: "I've put that change back the way it was.", sha });
     response.json({ reverted: sha });
   } catch (error: unknown) {
+    broadcast("reverted", { message: "That one didn't work — I've put everything back the way it was" });
     response.status(500).json({ error: error instanceof Error ? error.message : "Revert failed" });
   } finally { active = false; }
 });

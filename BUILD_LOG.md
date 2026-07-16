@@ -91,3 +91,35 @@ This append-only log records each user prompt, the resulting actions, and the ke
 - Preserve the architecture document verbatim and add the build-log contract as its own final section.
 - Replace shell-visible implementation jargon with warm product language while retaining the required SSE protocol event names.
 - Resolve failures as exactly one `refused` fence outcome or one `reverted` operational outcome; successful Sprint 1 proposals are reset and reported as `done`.
+
+## 2026-07-15 — Add the validation gauntlet and hardening runner
+
+### Prompt
+
+> Continue in this repo. Read AGENTS.md again — invariants 2, 4, 6, and 9 are the subject of this sprint. Append to the build log when done.
+>
+> First, a semantic correction to Sprint 1. Sprint 1 ran Codex, inspected the proposed files, reset all uncommitted work, and reported done. That stub branch must be deleted, not extended. After this sprint, done is emitted only after commit() returns successfully — it means the harness committed, never "Codex produced something plausible." The only terminal states are done, refused, and reverted; there is no path where the userland resets and the user is told the change is theirs.
+>
+> Implement kernel/gauntlet.ts and wire it into POST /request:
+>
+> Fence first: after Codex finishes, run diffNames() → checkFence(). Any violation: resetHard(), emit refused with a plain-language explanation naming no internals ("That part isn't mine to change — it keeps everything else safe"), and stop. No retries on fence violations — refusal is deterministic.
+> Then in order: tsc --noEmit scoped to userland, eslint scoped to userland, vitest smoke suite. On any failure: capture the tool's error output, feed it back to Codex in the same working directory as a follow-up instruction ("Your change failed validation with these errors: … Fix them without expanding the scope of the change"), and re-run the full gauntlet. Maximum 2 retries, then resetHard(), emit reverted ("That one didn't work — I've put everything back the way it was"), and write a failure entry to hardening-log.json.
+> On pass: commit(userText) — the user's words verbatim as the message, whatever language they're in — then emit done. Vite HMR handles the live swap; the kernel does nothing to trigger it.
+>
+> Create the smoke suite at userland/src/**tests**/smoke.test.tsx (runs against the stub for now): every widget in the registry renders in jsdom without throwing; App.tsx has a default export; a static check that no userland file imports from kernel/ or shell/ paths.
+>
+> Then add scripts/harden.ts (npm run harden): reads an array of test requests from scripts/taxonomy.json, runs each through the full request pipeline sequentially, and appends { request, outcome: done|refused|reverted, retries, durationMs, failureReason? } to hardening-log.json. Seed taxonomy.json with three placeholder requests.
+>
+> Also, the github repo is [Jeremiah-Sakuda/Sikia](https://github.com/Jeremiah-Sakuda/Sikia) commit frequently and push at the end of each turn
+
+### Actions
+
+- Replaced the Sprint 1 reset-and-done branch with `kernel/gauntlet.ts`, enforcing fence → userland typecheck → userland lint → smoke suite, up to two error-fed retries, commit-only success, deterministic refusal, and logged reversion.
+- Added the jsdom smoke suite, a stub widget registry, scoped userland commands, three-request taxonomy, and sequential `npm run harden` runner with the required JSON log schema.
+- Initialized the supplied GitHub repository, created frequent checkpoint commits, and verified strict typechecking, both lint scopes, 13 tests, the scoped gauntlet commands, and production userland compilation.
+
+### Key decisions
+
+- Make `commit(userText)` the final fallible harness operation before returning `done`; it receives the user's text unchanged and is never called from the server directly.
+- Restart the entire ordered gauntlet after each follow-up, while fence violations always reset and refuse immediately with zero retries.
+- Keep `hardening-log.json` ignored so operational logging cannot contaminate later fence diffs; the hardener avoids duplicating reverted entries already written by the gauntlet.

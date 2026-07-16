@@ -58,8 +58,9 @@ async function validate(): Promise<ToolResult> {
 }
 
 function progressFromCodex(event: CodexEvent): ProgressEvent {
-  const type = event.itemType === "agent_message" ? "plan" : event.itemType === "file_change" ? "diff" : "status";
-  return { type, message: event.summary };
+  if (event.itemType === "agent_message") return { type: "plan", message: event.summary };
+  if (event.itemType === "file_change") return { type: "diff", message: "Putting the change together." };
+  return { type: "status", message: "Working on it." };
 }
 
 async function askCodex(instruction: string, onProgress: ProgressListener): Promise<void> {
