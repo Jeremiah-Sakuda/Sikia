@@ -4,10 +4,14 @@
   "scripts": {
     "dev": "tsx scripts/dev.ts",
     "lint": "eslint shell/app.js",
+    "lint:userland": "eslint \"userland/**/*.{ts,tsx}\"",
     "test": "vitest run",
+    "test:userland": "vitest run userland/src/__tests__/smoke.test.tsx",
     "typecheck": "tsc --noEmit",
+    "typecheck:userland": "tsc --noEmit -p userland/tsconfig.json",
     "build:userland": "vite build --config userland/vite.config.ts",
-    "spike": "tsx scripts/spike.ts"
+    "spike": "tsx scripts/spike.ts",
+    "harden": "tsx scripts/harden.ts"
   },
   "dependencies": {
     "express": "^5.1.0"

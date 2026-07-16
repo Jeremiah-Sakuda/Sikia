@@ -7,10 +7,10 @@
     "strict": true,
     "noUncheckedIndexedAccess": true,
     "exactOptionalPropertyTypes": true,
-    "esModuleInterop": true,
-    "forceConsistentCasingInFileNames": true,
+    "lib": ["ES2022", "DOM"],
+    "types": ["node", "vitest/globals"],
     "skipLibCheck": true,
     "noEmit": true
   },
-  "include": ["kernel/**/*.ts", "scripts/**/*.ts", "userland/**/*.ts", "userland/**/*.tsx"]
+  "include": ["src/**/*.ts", "src/**/*.tsx", "vite.config.ts"]
 }

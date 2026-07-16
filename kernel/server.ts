@@ -1,10 +1,9 @@
 import express, { type Request, type Response } from "express";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { runCodex } from "./codex.js";
 import { SHELL_DIR, USERLAND_DIR } from "./config.js";
-import { checkFence } from "./fence.js";
-import { diffNames, log, resetHard, revert } from "./git.js";
+import { runGauntlet } from "./gauntlet.js";
+import { log, resetHard, revert } from "./git.js";
 
 type SseType = "status" | "plan" | "diff" | "done" | "refused" | "reverted";
 const clients = new Set<Response>();
@@ -33,26 +32,18 @@ function broadcast(type: SseType, data: unknown): void {
 async function processRequest(text: string): Promise<void> {
   broadcast("status", { message: "Heard you — working on it." });
   try {
-    for await (const event of runCodex(text, USERLAND_DIR)) {
-      const type: SseType = event.itemType === "agent_message" ? "plan" : event.itemType === "file_change" ? "diff" : "status";
-      broadcast(type, { message: shellSafe(event.summary) });
-    }
-    const files = await diffNames();
-    console.log("Changed files:", files);
-    broadcast("diff", { files });
-    const fence = checkFence(files);
-    if (!fence.ok) {
-      await resetHard();
-      broadcast("refused", { message: "That one's not mine to change, so I left everything as it was.", violations: fence.violations });
-      return;
-    }
-    await resetHard();
-    broadcast("done", { message: "Done — I checked the proposed files and put the trial changes back.", files, reset: true });
+    const result = await runGauntlet(text, (event) => {
+      if (event.files !== undefined) broadcast("diff", { files: event.files });
+      else broadcast(event.type, { message: shellSafe(event.message ?? "Working on it.") });
+    });
+    if (result.outcome === "done") broadcast("done", { message: "Done.", sha: result.sha, files: result.files });
+    else if (result.outcome === "refused") broadcast("refused", { message: "That part isn't mine to change — it keeps everything else safe" });
+    else broadcast("reverted", { message: "That one didn't work — I've put everything back the way it was" });
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : "Unknown Codex failure";
+    const message = error instanceof Error ? error.message : "Unknown request failure";
     try { await resetHard(); } catch (resetError: unknown) { console.error("Reset failed:", resetError); }
     console.error("Request failed:", message);
-    broadcast("reverted", { message: "That didn't work — I've put everything back. Sorry about that." });
+    broadcast("reverted", { message: "That one didn't work — I've put everything back the way it was" });
   } finally {
     active = false;
   }

@@ -1,3 +1,4 @@
 node_modules/
 spike-target/
 userland/dist/
+hardening-log.json
