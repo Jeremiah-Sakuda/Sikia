@@ -43,13 +43,20 @@ function parseEvent(value: unknown): CodexEvent {
   return itemType === undefined ? { type, summary, raw: value } : { type, summary, itemType, raw: value };
 }
 
-export async function* runCodex(instruction: string, cwd: string): AsyncGenerator<CodexEvent> {
+export async function* runCodex(instruction: string, cwd: string, signal?: AbortSignal): AsyncGenerator<CodexEvent> {
+  if (signal?.aborted) throw new Error("Codex request aborted");
   const child = spawn("codex", ["exec", "--json", "--ephemeral", "--sandbox", "workspace-write", instruction], {
     cwd,
     stdio: ["ignore", "pipe", "pipe"],
   });
   let stderr = "";
   let timedOut = false;
+  let aborted = false;
+  const abortChild = () => {
+    aborted = true;
+    child.kill("SIGTERM");
+  };
+  signal?.addEventListener("abort", abortChild, { once: true });
   child.stderr.setEncoding("utf8");
   child.stderr.on("data", (chunk: string) => { stderr += chunk; });
   const exit = new Promise<number | null>((resolve, reject) => {
@@ -72,9 +79,11 @@ export async function* runCodex(instruction: string, cwd: string): AsyncGenerato
       }
     }
     const code = await exit;
+    if (aborted) throw new Error("Codex request aborted");
     if (timedOut) throw new Error(`Codex timed out after ${CODEX_TIMEOUT_MS / 1_000}s`);
     if (code !== 0) throw new Error(`Codex exited with code ${code}: ${stderr.trim()}`);
   } finally {
     clearTimeout(timer);
+    signal?.removeEventListener("abort", abortChild);
   }
 }

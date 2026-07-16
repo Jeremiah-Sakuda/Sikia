@@ -123,3 +123,39 @@ This append-only log records each user prompt, the resulting actions, and the ke
 - Make `commit(userText)` the final fallible harness operation before returning `done`; it receives the user's text unchanged and is never called from the server directly.
 - Restart the entire ordered gauntlet after each follow-up, while fence violations always reset and refuse immediately with zero retries.
 - Keep `hardening-log.json` ignored so operational logging cannot contaminate later fence diffs; the hardener avoids duplicating reverted entries already written by the gauntlet.
+
+## 2026-07-16 — Run real gauntlet end-to-end verifications
+
+### Prompt
+
+> Run three manual end-to-end verifications of the gauntlet against the current stub userland, using real codex exec invocations. Tag pre-gauntlet-test first so all resulting commits can be discarded afterward. (1) A trivial valid edit to a stub file — confirm the gauntlet passes, commit() lands, git log shows the user's text verbatim as the message, and done is emitted only after the commit returns. (2) An instruction to edit kernel/config.ts — confirm deterministic refused with zero retries and a clean userland tree. (3) An instruction that introduces a TypeScript error — confirm two retries with errors piped back, then reverted and a hardening-log.json entry. Report each observed terminal state, the retry counts, and the durations. Then reset to the tag. Append results to BUILD_LOG.md.
+
+### Actions
+
+- Tagged `358de58` as `pre-gauntlet-test`, started the real kernel, submitted requests through `POST /request`, and captured terminal SSE events, retry signals, durations, git state, and failure-log entries.
+- Valid edit: observed `done`, 0 retries, and 32,095 ms. Commit `ccfdb92` existed when `done` arrived, userland was clean, and its message exactly matched `Change the greeting text in userland/src/widgets/registry.ts to "Hello from the gauntlet".`
+- Forbidden edit: observed `reverted`, not the expected `refused`, with 0 retries and 9,262 ms. The runtime agent obeyed its boundary and produced no diff; validation passed, then the empty commit failed. Userland remained clean. The failure log recorded 9,222 ms.
+- TypeScript failure: the first fixture attempt reverted after 1 retry when the repair invocation timed out at 180 seconds (213,125 ms wall time; 213,084 ms logged). A narrower repeat observed the requested `reverted` path with 2 retries, 61,649 ms wall time, a 61,607 ms hardening entry, captured lint output, and a clean userland tree.
+- Stopped the kernel, captured the temporary evidence, reset `main` to `pre-gauntlet-test`, and removed only the ignored failure log created by the runs.
+
+### Key decisions
+
+- Treat live SSE plus the contemporaneous git state as authoritative: `done` was confirmed only after the requested commit was visible at `HEAD`.
+- Report the forbidden-edit mismatch rather than relabeling the observed empty-diff failure as a fence refusal.
+- Repeat the TypeScript case with a faster persistent fixture after the first repair invocation timed out, while retaining both results in the record.
+
+## 2026-07-16 — Resume gauntlet verification
+
+### Prompt
+
+> Continue
+
+### Actions
+
+- Resumed from the clean pre-test state, created the safety tag, ran all live verification requests, and recorded their exact observed outcomes above.
+- Preserved the test evidence and completed the requested cleanup reset on the next turn when protected git approval succeeded.
+
+### Key decisions
+
+- Continue through the actual Express/SSE request path rather than replacing the manual run with mocks.
+- Stop after repeated protected-reset approval timeouts instead of bypassing the workspace's destructive-operation guard.

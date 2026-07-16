@@ -1,5 +1,9 @@
 import { ALLOWLIST_GLOBS } from "./config.js";
 
+// The Codex sandbox rooted at userland/ is the primary write boundary. This diff fence is the
+// backstop for paths the sandbox can reach but the allowlist forbids (for example,
+// userland/AGENTS.md). Neither layer depends on a prompt instruction for enforcement.
+
 export interface FenceResult {
   ok: boolean;
   violations: string[];

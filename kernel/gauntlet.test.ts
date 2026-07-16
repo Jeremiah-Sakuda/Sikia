@@ -4,6 +4,7 @@ const mocks = vi.hoisted(() => ({
   instructions: [] as string[],
   scripts: [] as string[],
   fenceOk: true,
+  hang: false,
   failuresRemaining: 0,
   commit: vi.fn(),
   diffNames: vi.fn(),
@@ -13,8 +14,17 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock("./codex.js", () => ({
-  runCodex(instruction: string) {
+  runCodex(instruction: string, _cwd: string, signal?: AbortSignal) {
     mocks.instructions.push(instruction);
+    if (mocks.hang) {
+      return (async function* hangingEvents() {
+        await new Promise<void>((resolve) => {
+          if (signal?.aborted) resolve();
+          else signal?.addEventListener("abort", () => resolve(), { once: true });
+        });
+        throw new Error("aborted");
+      })();
+    }
     return (async function* events() {
       yield { type: "turn.completed", summary: "complete", raw: {} };
     })();
@@ -50,6 +60,7 @@ describe("runGauntlet", () => {
     mocks.instructions.length = 0;
     mocks.scripts.length = 0;
     mocks.fenceOk = true;
+    mocks.hang = false;
     mocks.failuresRemaining = 0;
     mocks.commit.mockReset().mockResolvedValue(undefined);
     mocks.diffNames.mockReset().mockResolvedValue(["userland/src/App.tsx"]);
@@ -66,6 +77,16 @@ describe("runGauntlet", () => {
     expect(mocks.scripts).toEqual([]);
     expect(mocks.commit).not.toHaveBeenCalled();
     expect(mocks.resetHard).toHaveBeenCalledOnce();
+  });
+
+  it("logs an empty diff as a distinct no-op reversion", async () => {
+    mocks.diffNames.mockResolvedValue([]);
+    const result = await runGauntlet("Do something unclear");
+    expect(result).toMatchObject({ outcome: "reverted", retries: 0, failureReason: "no-op", files: [] });
+    expect(mocks.scripts).toEqual([]);
+    expect(mocks.commit).not.toHaveBeenCalled();
+    expect(mocks.resetHard).toHaveBeenCalledOnce();
+    expect(mocks.writeFile).toHaveBeenCalledOnce();
   });
 
   it("runs checks in order and commits the user's exact words before done", async () => {
@@ -96,5 +117,20 @@ describe("runGauntlet", () => {
     expect(mocks.resetHard).toHaveBeenCalledOnce();
     expect(mocks.writeFile).toHaveBeenCalledOnce();
     expect(result).toMatchObject({ outcome: "reverted", retries: 2, failureReason: "broken type" });
+  });
+
+  it("aborts and reverts when the total request budget expires", async () => {
+    vi.useFakeTimers();
+    try {
+      mocks.hang = true;
+      const pending = runGauntlet("Take too long");
+      await vi.advanceTimersByTimeAsync(240_000);
+      const result = await pending;
+      expect(result).toMatchObject({ outcome: "reverted", retries: 0, durationMs: 240_000, failureReason: "Total request timeout after 240s" });
+      expect(mocks.resetHard).toHaveBeenCalledOnce();
+      expect(mocks.writeFile).toHaveBeenCalledOnce();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

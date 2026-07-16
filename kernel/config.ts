@@ -9,3 +9,4 @@ export const HARDENING_LOG_PATH = resolve(ROOT_DIR, "hardening-log.json");
 export const ALLOWLIST_GLOBS = ["userland/src/**"] as const;
 export const RETRY_LIMIT = 2;
 export const CODEX_TIMEOUT_MS = 180_000;
+export const TOTAL_REQUEST_TIMEOUT_MS = 240_000;

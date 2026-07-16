@@ -41,6 +41,7 @@ async function processRequest(text: string): Promise<void> {
     });
     if (result.outcome === "done") broadcast("done", { message: "Done.", files: result.files });
     else if (result.outcome === "refused") broadcast("refused", { message: "That part isn't mine to change — it keeps everything else safe" });
+    else if (result.failureReason === "no-op") broadcast("reverted", { message: "I couldn't work out how to do that one — nothing's changed." });
     else broadcast("reverted", { message: "That one didn't work — I've put everything back the way it was" });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "Unknown request failure";
