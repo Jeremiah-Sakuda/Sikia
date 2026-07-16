@@ -16,10 +16,9 @@ async function git(args: string[]): Promise<string> {
   return stdout;
 }
 
-export async function commit(message: string): Promise<string> {
+export async function commit(message: string): Promise<void> {
   await git(["add", "--", "userland/src"]);
   await git(["commit", "-m", message]);
-  return (await git(["rev-parse", "HEAD"])).trim();
 }
 
 export async function revert(sha: string): Promise<void> {

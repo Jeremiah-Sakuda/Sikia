@@ -13,7 +13,6 @@ export interface RequestResult {
   retries: number;
   durationMs: number;
   failureReason?: string;
-  sha?: string;
   files: string[];
 }
 
@@ -103,8 +102,8 @@ export async function runGauntlet(userText: string, onProgress: ProgressListener
 
       const result = await validate();
       if (result.ok) {
-        const sha = await commit(userText);
-        return { request: userText, outcome: "done", retries, durationMs: Date.now() - started, sha, files };
+        await commit(userText);
+        return { request: userText, outcome: "done", retries, durationMs: Date.now() - started, files };
       }
 
       failureReason = result.output;

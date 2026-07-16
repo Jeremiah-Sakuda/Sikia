@@ -26,7 +26,10 @@ function send(response: Response, type: SseType, data: unknown): void {
 }
 
 function broadcast(type: SseType, data: unknown): void {
-  for (const client of clients) send(client, type, data);
+  for (const client of clients) {
+    try { send(client, type, data); }
+    catch (error: unknown) { clients.delete(client); console.error("Event stream failed:", error); }
+  }
 }
 
 async function processRequest(text: string): Promise<void> {
@@ -36,7 +39,7 @@ async function processRequest(text: string): Promise<void> {
       if (event.files !== undefined) broadcast("diff", { files: event.files });
       else broadcast(event.type, { message: shellSafe(event.message ?? "Working on it.") });
     });
-    if (result.outcome === "done") broadcast("done", { message: "Done.", sha: result.sha, files: result.files });
+    if (result.outcome === "done") broadcast("done", { message: "Done.", files: result.files });
     else if (result.outcome === "refused") broadcast("refused", { message: "That part isn't mine to change — it keeps everything else safe" });
     else broadcast("reverted", { message: "That one didn't work — I've put everything back the way it was" });
   } catch (error: unknown) {
