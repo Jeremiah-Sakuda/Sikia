@@ -1,0 +1,7 @@
+[
+  { "widget": "Cashflow", "position": 0, "visible": true },
+  { "widget": "Bills", "position": 1, "visible": true },
+  { "widget": "Spending", "position": 2, "visible": true },
+  { "widget": "Family", "position": 3, "visible": true },
+  { "widget": "Notes", "position": 4, "visible": true }
+]

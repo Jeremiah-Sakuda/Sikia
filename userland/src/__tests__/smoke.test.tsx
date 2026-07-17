@@ -2,16 +2,17 @@
 import { readdir, readFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import App from "../App.js";
 import { widgetRegistry } from "../widgets/registry.js";
 
 const userlandRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
-
 describe("userland smoke suite", () => {
-  it("renders every registered widget without throwing", () => {
-    for (const widget of widgetRegistry) {
-      expect(() => document.body.append(widget.render())).not.toThrow();
+  it("renders all five registered widgets without throwing", () => {
+    expect(Object.keys(widgetRegistry)).toEqual(["Cashflow", "Bills", "Spending", "Family", "Notes"]);
+    for (const [name, Widget] of Object.entries(widgetRegistry)) {
+      expect(() => renderToStaticMarkup(<Widget />), name).not.toThrow();
     }
   });
 

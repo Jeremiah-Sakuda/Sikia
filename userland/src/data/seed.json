@@ -1,0 +1,39 @@
+{
+  "profile": {
+    "fictional": true,
+    "balance": 2340.12,
+    "currency": "USD",
+    "paySchedule": { "daysOfMonth": [1, 15] },
+    "familyClocks": [
+      { "city": "Nairobi", "timeZone": "Africa/Nairobi" },
+      { "city": "Austin", "timeZone": "America/Chicago" }
+    ]
+  },
+  "bills": [
+    { "label": "Hilltop Apartments", "due": "2026-08-01", "amount": 1650, "paid": false, "dateAdded": "2026-06-02" },
+    { "label": "Streambox", "due": "2026-07-22", "amount": 15.99, "paid": false, "dateAdded": "2026-06-04" },
+    { "label": "Lone Star Electric", "due": "2026-07-28", "amount": 84.3, "paid": false, "dateAdded": "2026-06-06" },
+    { "label": "Eastside Gym", "due": "2026-08-05", "amount": 45, "paid": false, "dateAdded": "2026-06-08" },
+    { "label": "Cedar Internet", "due": "2026-07-20", "amount": 69.99, "paid": false, "dateAdded": "2026-06-10" },
+    { "label": "Mesa Auto Cover", "due": "2026-08-12", "amount": 132.5, "paid": false, "dateAdded": "2026-06-12" },
+    { "label": "Bluebonnet Mobile", "due": "2026-07-25", "amount": 58, "paid": true, "dateAdded": "2026-06-14" },
+    { "label": "Austin Water", "due": "2026-07-19", "amount": 41.75, "paid": false, "dateAdded": "2026-06-16" }
+  ],
+  "spending": {
+    "months": ["Feb", "Mar", "Apr", "May", "Jun", "Jul"],
+    "categories": [
+      { "name": "Groceries", "values": [460, 515, 482, 540, 506, 552] },
+      { "name": "Eating out", "values": [160, 208, 142, 194, 242, 181] },
+      { "name": "Transport", "values": [105, 84, 121, 92, 128, 101] },
+      { "name": "Utilities", "values": [205, 174, 221, 168, 196, 209] },
+      { "name": "Fun", "values": [44, 76, 29, 64, 39, 82] },
+      { "name": "Family support", "values": [120, 120, 150, 120, 180, 150] }
+    ]
+  },
+  "notes": [
+    "Ask the leasing office about the deposit interest",
+    "Cancel the Streambox trial before July 22",
+    "Send family support after the August 1 payday",
+    "Compare auto cover quotes before renewal"
+  ]
+}

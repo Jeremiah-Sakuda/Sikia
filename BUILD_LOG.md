@@ -159,3 +159,115 @@ This append-only log records each user prompt, the resulting actions, and the ke
 
 - Continue through the actual Express/SSE request path rather than replacing the manual run with mocks.
 - Stop after repeated protected-reset approval timeouts instead of bypassing the workspace's destructive-operation guard.
+
+## 2026-07-16 — Correct live gauntlet edge cases and rerun verification
+
+### Prompt
+
+> Four corrections from the live verification run, in this order. Append to BUILD_LOG.md when done.
+>
+> **The fence test was invalid.** kernel/config.ts is outside the Codex sandbox (cwd is pinned to userland/), so the runtime agent physically cannot edit it — no diff was produced and the fence never fired. Re-run the verification with a target the agent *can* reach but the allowlist forbids: instruct it to modify userland/AGENTS.md. Confirm the observed terminal state is refused, deterministic, zero retries, userland tree clean. Report the diff Codex proposed before the fence rejected it. Document in fence.ts that the sandbox cwd is the primary boundary and the fence is the backstop for in-workspace, out-of-allowlist paths — two layers, neither of them a prompt.
+> **Empty diffs are unhandled.** After Codex exits, check for an empty diff *before* validation. Currently a no-op falls through to a failed empty commit and reports reverted with copy that says everything was put back — which is false, since nothing happened. Keep the two failure states, but add a no-op copy variant on reverted: "I couldn't work out how to do that one — nothing's changed." Log it distinctly in hardening-log.json with failureReason: "no-op".
+> **Add a total-request timeout.** The 180s limit is per-invocation, so two retries can run past nine minutes; the first TS fixture hit 213s. Add a 240s total budget in config.ts that aborts the whole retry loop, resets, and emits reverted. Per-invocation timeout stays.
+> Re-run all three verifications after these fixes and report observed terminal states, retry counts, and durations for each.
+
+### Actions
+
+- Documented the two enforcement layers in `fence.ts`, added the pre-validation empty-diff branch and truthful no-op copy/log reason, and propagated a 240-second total `AbortSignal` through Codex and validation subprocesses while retaining the 180-second invocation limit.
+- Expanded focused coverage to 15 passing tests, including no-op behavior and a fake-timer proof that total-budget expiry resets, logs, and returns `reverted` at 240 seconds.
+- Valid rerun: observed `done`, 0 retries, 33,582 ms. Commit `f306257` and the exact user message were present when `done` arrived; userland was clean.
+- Direct `userland/AGENTS.md` rerun: the prompt layer refused to edit, so the new no-op path correctly emitted `reverted`, 0 retries, 15,936 ms and logged `failureReason: "no-op"` at 15,896 ms.
+- Isolated fence-backstop rerun: a temporary post-tag commit permitted only the marker edit so the prompt layer no longer masked the fence. After one invocation stalled at 180 seconds, the retry observed `refused`, 0 retries, 16,996 ms and a clean tree. A watcher captured the proposed diff: one added line, `Fence verification marker.`, in `userland/AGENTS.md`.
+- TypeScript rerun: one attempt reverted after 1 retry when a repair invocation hit 180 seconds (198,618 ms wall; 198,574 ms logged). The final exact-rule fixture observed `reverted`, 2 retries, 59,154 ms wall time, a 59,113 ms hardening entry, and a clean tree. The 240-second total budget did not fire because both runs ended sooner.
+- Committed the corrections at `ab56b1b` and tagged it `pre-gauntlet-retest`. Cleanup reset of the two later test-only commits was blocked because the protected approval system reported that the workspace was out of credits.
+
+### Key decisions
+
+- Keep sandboxing and diff inspection independently enforceable; a temporary test-only baseline neutralized prompt refusal solely to observe the fence backstop, then was scheduled for discard.
+- Classify a truly empty diff before all checks and commits, preserving `reverted` as the terminal type while making its copy and hardening reason truthful.
+- Use one total `AbortController` across initial generation, retries, and validation commands; retain the shorter child timer and report whichever limit actually ends the request.
+
+## 2026-07-17 — Replace the userland stub with the personal money dashboard (dependency approval pending)
+
+### Prompt
+
+> Read AGENTS.md in the repo root. This sprint replaces the userland stub with the real dashboard — a personal money dashboard. Important context: the default theme is DELIBERATELY hostile — small type (14px), cold white background, a chart with thin red/green lines and a microscopic legend. This is the demo's "before" state. Build it exactly that way and do not improve it.
+>
+> In userland/src/, build a Vite + React dashboard with:
+>
+> tokens.ts — the ONLY place colors, type scale, spacing, and radii live. Every widget consumes tokens; no hardcoded colors anywhere else.
+> layout.json — a simple grid config: array of { widget: string, position: number, visible: boolean } that App.tsx maps over.
+> widgets/registry.ts — name → component map. Adding a widget = one file + one registry line + one layout entry.
+> Five widgets: Cashflow (today's date, current balance, next payday and days until it, computed from the seed profile), Bills (~8 items { label, due, amount, paid } spanning the month, default-sorted by dateAdded — deliberately wrong), Spending (recharts line chart of monthly spend by category from seed — thin lines, default red/green palette, small legend), Family (two clocks, Nairobi and Austin, with a "good time to call?" indicator based on hour), Notes (plain list).
+> data/seed.json — one coherent FICTIONAL money life: a profile section with balance and a pay schedule (the 1st and the 15th), bills with consistent invented names and plausible amounts mixed before/after the next payday, five or six spending categories across six months, a few notes. Dates span the current month. No real people's details, no lorem ipsum.
+>
+> userland/AGENTS.md already exists (created in Sprint 1, correctly outside the mutation allowlist). Do not create a second one and do not duplicate it elsewhere — reconcile the existing file against the text below, preserving anything already there that doesn't conflict, and making the result read as one coherent document. The target content:
+>
+> # AGENTS.md — Sikia userland (runtime tailor)
+>
+> You are the tailor inside Sikia, a personal money dashboard. A person who
+> is not a programmer has asked, in their own words and possibly not in
+> English, for their dashboard to fit them better. Your job is the smallest
+> well-made alteration that honors the request.
+>
+> ## Where things live
+> - ALL colors, type sizes, spacing, radii: src/tokens.ts. Theming requests
+>   are token edits. Never hardcode a color or size in a component.
+> - Layout and visibility: src/layout.json.
+> - Widgets: src/widgets/, registered in registry.ts. To add a widget:
+>   one new file + one registry line + one layout.json entry.
+> - Data: src/data/seed.json. Sorting/filtering logic lives in the widget
+>   that displays the data.
+> - Personal facts the owner tells you (a pay schedule, a preference with
+>   data behind it) are stored as data in the profile section of
+>   src/data/seed.json; the logic that uses them lives in the relevant
+>   widget. Never bury a personal fact as a constant inside a component.
+>
+> ## Rules of the shop
+> 1. Smallest diff that fully honors the request. Touch the fewest files.
+> 2. Never remove or degrade existing functionality unless explicitly asked.
+> 3. Never reformat, refactor, or "improve" code you weren't asked to change.
+> 4. Requests may arrive in any language. Interpret faithfully; if a request
+>    is ambiguous, choose the most conservative reading that helps.
+> 5. Accessibility requests (bigger text, contrast, thicker lines, larger
+>    targets, reduced motion) are always in scope and always honored
+>    generously — err toward more legible, not less.
+> 6. This dashboard organizes and displays the owner's numbers. It never
+>    gives financial advice, recommendations, or judgments about their
+>    choices — if a request asks for advice, implement only the display or
+>    organization part of it.
+> 7. Everything must still typecheck (strict), lint, and render. Every widget
+>    in the registry must render without throwing.
+> 8. You may only modify files under src/. Nothing else exists for you.
+>
+> Update the smoke suite to cover the five real widgets. Keep total userland source around 15 files. For the frontend, there is a folder presenyt called "Sikia_frontend" that has the main pages, integrate them
+
+### Actions
+
+- Read the root rules and the existing `Sikia Dashboard Before` reference, then replaced the imperative stub with a 12-file React userland matching its deliberately cold, cramped visual language.
+- Added centralized visual tokens, JSON layout and fictional seed data, the React registry and five requested widgets, and reconciled the existing runtime `AGENTS.md` without duplicating it.
+- Updated the jsdom smoke suite for all five widgets. React was recovered from the local npm cache, but Recharts installation and final verification remain blocked because npm registry approval timed out twice; ESLint also requires an approved TypeScript parser dependency.
+
+### Key decisions
+
+- Treat `Sikia Dashboard Before.dc.html` as the integration source and translate it into userland React without modifying the user-owned `Sikia_frontend/` reference files or the shell.
+- Keep every color, type size, spacing value, and radius in `tokens.ts`; the intentionally poor 14px theme, one-pixel red/green chart lines, and 8px legend are preserved as product requirements.
+- Stop before claiming completion or committing: `typescript-eslint` is outside the dependency budget and needs explicit approval, while the requested Recharts package still needs registry access.
+
+## 2026-07-17 — Complete and verify the personal money dashboard
+
+### Prompt
+
+> Proceed
+
+### Actions
+
+- Installed the approved React/Recharts stack and `typescript-eslint`, then configured ESLint to parse TSX and apply its TypeScript-aware unused-variable rule.
+- Ran strict typechecking, shell and userland lint, all 15 tests, and the production Vite build successfully; the smoke suite renders all five registry widgets without throwing.
+- Visually inspected the live userland in the in-app browser and confirmed five widgets, a cold-white 14px base theme, six one-pixel red/green chart lines, an 8px legend, working family clock hands, no browser errors, and no horizontal overflow.
+
+### Key decisions
+
+- Keep the approved parser configuration minimal: preserve the existing lint intent and replace only core rules that are invalid for TypeScript syntax.
+- Use the supplied `Sikia Dashboard Before` page as a read-only visual reference; do not stage the existing `Sikia_frontend/` folder or unrelated `sikia_prd.md` edits.
+- Accept Vite's bundle-size warning for this disposable hackathon scope; code splitting would add unrequested abstraction and does not affect correctness.
