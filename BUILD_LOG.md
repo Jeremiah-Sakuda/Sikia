@@ -373,3 +373,30 @@ This append-only log records each user prompt, the resulting actions, and the ke
 - Store class and priority beside each request instead of inferring them from array position, making later rate calculations auditable.
 - Pass class context into the gauntlet so failure logging remains single-write and does not create duplicate hardening entries.
 - Keep all P0 classes contiguous at the front to spend live-run credits on the success-threshold classes first.
+
+## 2026-07-17 — Autonomous completion Phase 3: Swahili decision and hardening blocker
+
+### Prompt
+
+> Phase 3 — Swahili decision, then the hardening loop (live runs; the credit-heavy phase).
+> git tag pre-harden-test first.
+>
+> Run the two Swahili requests three times each. Sprint 3 evidence: comprehension fine, planning happened in Swahili, then generation stalled to the 180s timeout with zero changes. If all six runs complete scoped → pass-through works; document the decision and evidence in codex.ts. If any stall or sprawl recurs → implement kernel-side translation: detect non-English input, translate the instruction to English for the Codex invocation via one API call, but pass the ORIGINAL text through untouched as the commit message and changelog headline. Then re-run the Swahili requests to confirm. Record every outcome.
+> Run the full npm run harden suite. Then iterate: group failures by cause; for each cause apply the smallest fix, preferring edits to userland/AGENTS.md, then userland code structure, and only lastly kernel prompt assembly; re-run the affected classes. Stop when P0 classes (personal logic, accessibility, theming, sorting) reach ≥70% success AND every failure ends in a clean refuse/revert — or after 3 full iterations, or on credit exhaustion, whichever comes first. Log per-class success rates, dominant failure modes, and every rulebook change with its rationale — this data becomes the README table.
+> Checkpoint commit per iteration: harden: <class> — <one-line fix>.
+
+### Actions
+
+- Tagged `6086bf6` as `pre-harden-test`, started the real kernel, and ran the first Swahili request, `Fanya maandishi makubwa.`, through `POST /request`. It emitted `reverted` after 180.111s with 0 retries and no changed files; the logged invocation failure was the 180-second timeout.
+- Because the prior Sprint 3 stall recurred immediately, implemented the required kernel translation path with one direct Responses API call using `gpt-5.4-nano`, selected from current official model guidance for simple speed-sensitive work. English passes through without a call; detected Swahili or non-ASCII input is translated before the runtime invocation.
+- Added four unit tests covering English pass-through, both taxonomy Swahili forms, one-call response parsing, and the missing-key prerequisite. Strict typecheck, both lint scopes, and all 28 tests pass.
+
+### Key decisions
+
+- Preserve the untranslated `userText` at the gauntlet boundary, so invariant 5 still makes the exact Swahili words the commit message and changelog headline; only the child-process instruction is translated.
+- Use Node's built-in `fetch` and the Responses API rather than adding an SDK, preserving the dependency budget; parse the documented `output[].content[].output_text` response shape as strict unknown data.
+- Stop live requests after the first recurrence because `OPENAI_API_KEY` is absent. The required translation confirmation and full taxonomy would otherwise generate deterministic missing-key reverts and spend no useful runtime credits.
+
+### NEEDS HUMAN
+
+- Provide `OPENAI_API_KEY`, then rerun both Swahili taxonomy requests and `npm run harden`. Phase 3 measured only 1 of 6 requested Swahili trials (0 done / 1 reverted); no per-class success rates can be claimed from this phase, and no tailor-rule iterations were justified without those results.

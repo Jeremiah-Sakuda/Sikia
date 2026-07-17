@@ -2,6 +2,9 @@ import { spawn } from "node:child_process";
 import { createInterface } from "node:readline";
 import { CODEX_TIMEOUT_MS } from "./config.js";
 
+const TRANSLATION_MODEL = process.env.OPENAI_TRANSLATION_MODEL ?? "gpt-5.4-nano";
+const SWAHILI_WORDS = /\b(badilisha|fanya|iwe|maandishi|makubwa|mistari|ongeza|rangi|ukubwa|yawe)\b/i;
+
 export type CodexEventType =
   | "thread.started"
   | "turn.started"
@@ -21,6 +24,49 @@ export interface CodexEvent {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+export function needsEnglishTranslation(instruction: string): boolean {
+  return /[^\x00-\x7F]/.test(instruction) || SWAHILI_WORDS.test(instruction);
+}
+
+function responseText(value: unknown): string | undefined {
+  if (!isRecord(value) || !Array.isArray(value.output)) return undefined;
+  for (const item of value.output) {
+    if (!isRecord(item) || !Array.isArray(item.content)) continue;
+    for (const content of item.content) {
+      if (isRecord(content) && content.type === "output_text" && typeof content.text === "string") {
+        return content.text.trim();
+      }
+    }
+  }
+  return undefined;
+}
+
+export async function instructionForCodex(instruction: string, signal?: AbortSignal): Promise<string> {
+  if (!needsEnglishTranslation(instruction)) return instruction;
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (apiKey === undefined || apiKey.length === 0) throw new Error("OPENAI_API_KEY is required to translate non-English requests");
+
+  // Sprint 3 and Phase 3 evidence: direct Swahili runs planned correctly but
+  // stalled after 180.105s and 180.111s with no changes. Translate once; git receives
+  // the untouched user text. Responses API shape verified against official docs.
+  const response = await fetch("https://api.openai.com/v1/responses", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      model: TRANSLATION_MODEL,
+      instructions: "Translate the user's dashboard-edit request into concise English. Preserve every concrete value and requirement. Return only the translation.",
+      input: instruction,
+      max_output_tokens: 160,
+      store: false,
+    }),
+    ...(signal === undefined ? {} : { signal }),
+  });
+  if (!response.ok) throw new Error(`Translation request failed with status ${response.status}`);
+  const translated = responseText(await response.json());
+  if (translated === undefined || translated.length === 0) throw new Error("Translation response contained no text");
+  return translated;
 }
 
 function stringAt(record: Record<string, unknown>, key: string): string | undefined {
@@ -57,7 +103,8 @@ function parseEvent(value: unknown): CodexEvent {
 
 export async function* runCodex(instruction: string, cwd: string, signal?: AbortSignal): AsyncGenerator<CodexEvent> {
   if (signal?.aborted) throw new Error("Codex request aborted");
-  const child = spawn("codex", ["exec", "--json", "--ephemeral", "--sandbox", "workspace-write", instruction], {
+  const effectiveInstruction = await instructionForCodex(instruction, signal);
+  const child = spawn("codex", ["exec", "--json", "--ephemeral", "--sandbox", "workspace-write", effectiveInstruction], {
     cwd,
     stdio: ["ignore", "pipe", "pipe"],
   });
