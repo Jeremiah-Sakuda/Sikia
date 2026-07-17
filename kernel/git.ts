@@ -11,6 +11,23 @@ export interface GitLogEntry {
   files: string[];
 }
 
+function statusPath(line: string): string | undefined {
+  if (line.length < 4) return undefined;
+  const raw = line.slice(3).split(" -> ").at(-1) ?? "";
+  if (!raw.startsWith('"')) return raw;
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    return typeof parsed === "string" ? parsed : undefined;
+  } catch {
+    return raw;
+  }
+}
+
+export function changedPathsSince(baseline: readonly string[], current: readonly string[]): string[] {
+  const original = new Set(baseline);
+  return [...new Set(current.filter((line) => !original.has(line)).flatMap((line) => statusPath(line) ?? []))].sort();
+}
+
 async function git(args: string[]): Promise<string> {
   const { stdout } = await execFile("git", args, { cwd: ROOT_DIR, encoding: "utf8" });
   return stdout;
@@ -34,15 +51,21 @@ export async function log(): Promise<GitLogEntry[]> {
   });
 }
 
-export async function diffNames(): Promise<string[]> {
-  const [tracked, untracked] = await Promise.all([
-    git(["diff", "--name-only", "HEAD"]),
-    git(["ls-files", "--others", "--exclude-standard"]),
-  ]);
-  return [...new Set(`${tracked}\n${untracked}`.split("\n").filter(Boolean))].sort();
+export async function statusPorcelain(): Promise<string[]> {
+  return (await git(["status", "--porcelain=v1", "--untracked-files=all"])).split("\n").filter(Boolean);
+}
+
+export async function diffNames(baseline: readonly string[] = []): Promise<string[]> {
+  return changedPathsSince(baseline, await statusPorcelain());
 }
 
 export async function resetHard(): Promise<void> {
-  await git(["reset", "--hard", "HEAD"]);
+  await git(["restore", "--source", "HEAD", "--staged", "--worktree", "--", "userland"]);
   await git(["clean", "-fd", "--", "userland"]);
+}
+
+export async function recoverUserland(): Promise<string[]> {
+  const dirty = (await diffNames()).filter((path) => path === "userland" || path.startsWith("userland/"));
+  if (dirty.length > 0) await resetHard();
+  return dirty;
 }

@@ -3,7 +3,7 @@ import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { SHELL_DIR, USERLAND_DIR, USERLAND_DEV_URL } from "./config.js";
 import { runGauntlet } from "./gauntlet.js";
-import { log, resetHard, revert } from "./git.js";
+import { log, recoverUserland, resetHard, revert } from "./git.js";
 
 type SseType = "status" | "plan" | "diff" | "done" | "refused" | "reverted";
 const clients = new Set<Response>();
@@ -102,5 +102,13 @@ app.get("/log", async (_request: Request, response: Response) => {
 const entrypoint = process.argv[1] === undefined ? "" : resolve(process.argv[1]);
 if (entrypoint === fileURLToPath(import.meta.url)) {
   const port = Number.parseInt(process.env.PORT ?? "3000", 10);
-  app.listen(port, () => console.log(`Sikia listening on http://localhost:${port}`));
+  void recoverUserland()
+    .then((recovered) => {
+      if (recovered.length > 0) console.log(`Restored userland before startup: ${recovered.join(", ")}`);
+      app.listen(port, () => console.log(`Sikia listening on http://localhost:${port}`));
+    })
+    .catch((failure: unknown) => {
+      console.error("Sikia could not prepare userland:", failure);
+      process.exitCode = 1;
+    });
 }

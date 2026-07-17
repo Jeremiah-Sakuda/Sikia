@@ -329,3 +329,26 @@ This append-only log records each user prompt, the resulting actions, and the ke
 - Keep React build-time only through the existing Vite dependency: Express serves `shell/dist/`, while the configured userland development URL comes from `/shell-config` so shell code never imports across the kernel boundary.
 - Show only history entries whose touched files are entirely under `userland/src/`; this preserves the owner's memoir and prevents build-time engineering commits from leaking internal language into the product.
 - Preserve exact terminal semantics in the UI: failure rollback says work was restored, while a no-op says nothing changed and never implies an undo occurred.
+
+## 2026-07-17 — Autonomous completion Phase 1: kernel integration
+
+### Prompt
+
+> Phase 1 — Kernel integration fixes (no live runs needed).
+>
+> Crash safety: on kernel boot, if the userland working tree is dirty, reset it to HEAD before serving.
+> Baseline-diff fence fix: the fence currently judges absolute working-tree state, so pre-existing untracked files cause refusals unrelated to the request (this happened in Sprint 3 with Sikia_frontend/). Capture a git status --porcelain baseline at request start; the fence evaluates only paths changed relative to that baseline. Add Sikia_frontend/ to .gitignore. Add a test proving a pre-existing untracked file no longer causes a refusal.
+> Verify the 240s total budget and 180s per-invocation timeout still behave against the real dashboard (unit-level is fine here; live confirmation comes in Phase 3).
+> Checkpoint commit: integration: crash recovery, baseline-diff fence, ignores.
+
+### Actions
+
+- Added boot-time dirty-userland recovery and narrowed rollback cleanup to tracked and untracked files under `userland/`, preserving unrelated repository work.
+- Captured `git status --porcelain` at request start and made the gauntlet evaluate only status lines introduced after that baseline; added `Sikia_frontend/` to `.gitignore`.
+- Added baseline parsing tests, including a pre-existing untracked file fixture, plus explicit 180-second invocation and 240-second total-budget assertions. Strict typecheck, both lint scopes, and all 22 tests pass.
+
+### Key decisions
+
+- Compare complete porcelain lines, not only path names, so unrelated pre-existing status is excluded without weakening the allowlist fence applied to request-created changes.
+- Scope recovery and rollback to `userland/`; a repository-wide hard reset would violate the instruction to preserve unrelated owner work.
+- Keep both timeout values unchanged and rely on the existing fake-timer total-budget behavior test plus fixed-value configuration coverage.

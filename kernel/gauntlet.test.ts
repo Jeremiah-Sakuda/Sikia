@@ -9,6 +9,7 @@ const mocks = vi.hoisted(() => ({
   commit: vi.fn(),
   diffNames: vi.fn(),
   resetHard: vi.fn(),
+  statusPorcelain: vi.fn(),
   readFile: vi.fn(),
   writeFile: vi.fn(),
 }));
@@ -39,6 +40,7 @@ vi.mock("./git.js", () => ({
   commit: mocks.commit,
   diffNames: mocks.diffNames,
   resetHard: mocks.resetHard,
+  statusPorcelain: mocks.statusPorcelain,
 }));
 
 vi.mock("node:fs/promises", () => ({ readFile: mocks.readFile, writeFile: mocks.writeFile }));
@@ -65,6 +67,7 @@ describe("runGauntlet", () => {
     mocks.commit.mockReset().mockResolvedValue(undefined);
     mocks.diffNames.mockReset().mockResolvedValue(["userland/src/App.tsx"]);
     mocks.resetHard.mockReset().mockResolvedValue(undefined);
+    mocks.statusPorcelain.mockReset().mockResolvedValue([]);
     mocks.readFile.mockReset().mockRejectedValue(Object.assign(new Error("missing"), { code: "ENOENT" }));
     mocks.writeFile.mockReset().mockResolvedValue(undefined);
   });
@@ -96,6 +99,7 @@ describe("runGauntlet", () => {
     expect(mocks.commit).toHaveBeenCalledWith(request);
     expect(result.outcome).toBe("done");
     expect(mocks.resetHard).not.toHaveBeenCalled();
+    expect(mocks.diffNames).toHaveBeenCalledWith([]);
   });
 
   it("feeds errors back and reruns the full gauntlet", async () => {

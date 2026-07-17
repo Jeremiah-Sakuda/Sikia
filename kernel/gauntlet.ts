@@ -3,7 +3,7 @@ import { readFile, writeFile } from "node:fs/promises";
 import { runCodex, type CodexEvent } from "./codex.js";
 import { HARDENING_LOG_PATH, RETRY_LIMIT, ROOT_DIR, TOTAL_REQUEST_TIMEOUT_MS, USERLAND_DIR } from "./config.js";
 import { checkFence } from "./fence.js";
-import { commit, diffNames, resetHard } from "./git.js";
+import { commit, diffNames, resetHard, statusPorcelain } from "./git.js";
 
 export type RequestOutcome = "done" | "refused" | "reverted";
 
@@ -95,9 +95,10 @@ export async function runGauntlet(userText: string, onProgress: ProgressListener
 
   try {
     try {
+      const baseline = await statusPorcelain();
       await askCodex(userText, onProgress, totalController.signal);
       while (true) {
-        files = await diffNames();
+        files = await diffNames(baseline);
         if (totalController.signal.aborted) throw new Error("Total request timeout");
         onProgress({ type: "diff", files });
         if (files.length === 0) {
