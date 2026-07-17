@@ -451,3 +451,51 @@ This append-only log records each user prompt, the resulting actions, and the ke
 ### NEEDS HUMAN
 
 - Review README claims, add the `/feedback` session ID, and insert the 60-second capture link in the two marked placeholders. Live hardening and clean-clone mutation remain the Phase 3/4 key-dependent blockers already recorded above.
+
+## 2026-07-17 — Autonomous completion Phase 6: final sweep and run report
+
+### Prompt
+
+> Phase 6 — Final sweep and report.
+> Scan every user-visible shell string against the language rules; run typecheck, both lints, the full test suite, and both production builds; confirm main is pushed. Then write the final BUILD_LOG.md entry as a run report: phases completed, per-class hardening rates, the Swahili decision and its evidence, every NEEDS HUMAN item in one consolidated list, and the exact remaining human tasks in order: (1) review README claims for accuracy, (2) insert the /feedback session ID, (3) record the 60-second unedited capture, (4) film demo takes using npm run demo:reset between takes, (5) final video cut and YouTube upload, (6) submission form. Do not attempt any of those six yourself.
+
+### Actions
+
+- Audited shell literals and kernel-to-shell streaming copy for the forbidden engineering terms. Static shell copy was clean; expanded the existing SSE sanitizer so incidental runtime prose also replaces standalone “AI” and “error/errors” before reaching the workshop.
+- Ran `npm run typecheck`, `npm run lint`, `npm run lint:userland`, `npm test`, `npm run build:userland`, and `npm run build:shell`: all passed. The suite contains 9 test files and 28 tests; the userland production build retained its known 544.56 kB chunk-size warning, while both builds completed successfully.
+- Confirmed Phases 1 and 2 complete, Phase 3 safely stopped at its documented prerequisite, Phase 4 startup/reset complete with mutation confirmation blocked, and Phase 5 complete. All checkpoint commits through the README were pushed to `origin/main`; this report and sanitizer are the final checkpoint.
+
+### Per-class hardening report
+
+| Class | Planned | Measured | Done rate | Dominant measured failure |
+| --- | ---: | ---: | ---: | --- |
+| Personal logic | 5 | 0 | not measured | not run |
+| Accessibility | 6 | 1 | 0% | direct Swahili invocation timed out at 180.111s |
+| Theming | 4 | 0 | not measured | not run |
+| Sorting/filtering | 4 | 0 | not measured | not run |
+| Layout | 2 | 0 | not measured | not run |
+| Widget add | 2 | 0 | not measured | not run |
+| Out of fence | 2 | 0 | not measured | not run |
+
+### Swahili decision
+
+- Pass-through was rejected after the first Phase 3 repetition reproduced Sprint 3: `Fanya maandishi makubwa.` was understood enough to plan, then emitted `reverted` after 180.111s, 0 retries, and no changed files. The earlier real-dashboard run had the same shape at 180.105s.
+- The kernel now detects the two taxonomy Swahili forms (plus non-ASCII scripts), makes one Responses API call to translate the child-process instruction, and keeps the original request untouched at the gauntlet/commit boundary. Four focused tests pass; live confirmation is not claimed without the missing key.
+
+### Key decisions
+
+- Treat a missing external prerequisite as a transparent incomplete measurement, not as a reason to weaken budgets or manufacture rates.
+- Keep final copy defense at the SSE boundary in addition to carefully authored static strings, because streamed runtime prose is not otherwise predictable.
+- Leave the deliberate 544.56 kB dashboard bundle warning in scope: it is a successful build and code-splitting would add unrequested complexity days before ship.
+
+### NEEDS HUMAN — consolidated
+
+- Export a working `OPENAI_API_KEY`; rerun both translated Swahili requests, then `npm run harden`, applying at most the three evidence-driven iterations described in Phase 3. Record per-class rates and update the README table with those real results.
+- From a new clean clone with the key present, submit one scoped mutation and confirm the complete clone-to-mutation path remains under five minutes. Startup and `npm run demo:reset` are already verified.
+- Complete the human submission work in exactly this order:
+  1. Review README claims for accuracy.
+  2. Insert the `/feedback` session ID.
+  3. Record the 60-second unedited capture.
+  4. Film demo takes using `npm run demo:reset` between takes.
+  5. Make the final video cut and upload it to YouTube.
+  6. Complete the submission form.

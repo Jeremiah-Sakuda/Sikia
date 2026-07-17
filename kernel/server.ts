@@ -16,7 +16,10 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 function shellSafe(message: string): string {
   return message
     .replaceAll(/codex/gi, "assistant")
+    .replaceAll(/\bAI\b/gi, "assistant")
     .replaceAll(/validation/gi, "checks")
+    .replaceAll(/\berrors\b/gi, "issues")
+    .replaceAll(/\berror\b/gi, "issue")
     .replaceAll(/patch/gi, "change")
     .replaceAll(/diff/gi, "changes");
 }
