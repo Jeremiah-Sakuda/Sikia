@@ -271,3 +271,30 @@ This append-only log records each user prompt, the resulting actions, and the ke
 - Keep the approved parser configuration minimal: preserve the existing lint intent and replace only core rules that are invalid for TypeScript syntax.
 - Use the supplied `Sikia Dashboard Before` page as a read-only visual reference; do not stage the existing `Sikia_frontend/` folder or unrelated `sikia_prd.md` edits.
 - Accept Vite's bundle-size warning for this disposable hackathon scope; code splitting would add unrequested abstraction and does not affect correctness.
+
+## 2026-07-17 — Run Sprint 3 live request verification
+
+### Prompt
+
+> git tag pre-sprint3-test, then run four real requests through the full pipeline via POST /request, in this order, reporting terminal state, retry count, duration, and the files each diff touched. Append results to BUILD_LOG.md.
+>
+> **The proof beat first:** *"I get paid on the 1st and the 15th — color my bills by whether they land before or after my next paycheck"* → expect done, a diff touching only the seed profile and the Bills widget. If it sprawls or fails, diagnose whether the fix is a tailor-AGENTS.md rule and propose it — do not touch the kernel.
+> *"Make the text bigger and the background warm cream"* → expect done, tokens-only diff, ~30s.
+> *"Show me what's due first"* → expect done, Bills-only diff.
+> *"Fanya maandishi makubwa"* → expect done; record exactly which files it touched — this is the Sprint 5 Swahili evidence, now with the rulebook in place.
+>
+> Report all four before any cleanup; I'll reset to the tag myself. Then git reset --hard pre-sprint3-test
+
+### Actions
+
+- Protected the unrelated tracked PRD edit, tagged commit `6ff8a9b` as `pre-sprint3-test`, started the real Express kernel, and submitted each request sequentially through `POST /request` while observing the SSE stream.
+- The first proof attempt was contaminated by the pre-existing untracked `Sikia_frontend/` folder: the fence included those paths and emitted `refused` after 69.143s with 0 retries. After temporarily protecting that folder, the clean proof rerun emitted `done`, 0 retries, 86.129s, touching `userland/src/tokens.ts` and `userland/src/widgets/Bills.tsx`.
+- The warm-theme request emitted `done`, 0 retries, 86.015s, touching only `userland/src/tokens.ts`; the due-first request emitted `done`, 0 retries, 37.104s, touching only `userland/src/widgets/Bills.tsx`.
+- The Swahili request was understood and planned in Swahili but produced no file change before the initial invocation hit its 180s limit. It emitted `reverted`, 0 retries, 180.105s, touched no files, and logged `Codex timed out after 180s`.
+- Reported all four outcomes before cleanup, stopped the kernel, reset hard to `pre-sprint3-test`, removed only the test-created hardening entry, and restored the protected PRD and frontend reference work.
+
+### Key decisions
+
+- Do not propose a tailor-rule change for the proof-beat scope mismatch: the pay schedule already existed in the profile, while the current rule correctly requires new colors in `tokens.ts`; forcing the expected seed-plus-Bills diff would duplicate data or hardcode colors.
+- Treat the initial proof refusal as invalid environmental contamination and rerun from the same tagged baseline after protecting the unrelated untracked files.
+- Record the Swahili run as failed evidence rather than inferring success from correct language comprehension; terminal SSE and committed file state remain authoritative.
