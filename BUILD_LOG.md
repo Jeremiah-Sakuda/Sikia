@@ -427,3 +427,27 @@ This append-only log records each user prompt, the resulting actions, and the ke
 ### NEEDS HUMAN
 
 - The clean clone reached a running shell and dashboard well under five minutes, but a working mutation could not be verified because this environment has no `OPENAI_API_KEY`. Repeat one scoped request from the clean clone after providing the documented prerequisite.
+
+## 2026-07-17 — Autonomous completion Phase 5: shipping README
+
+### Prompt
+
+> Phase 5 — README.md.
+> Write the README with these sections in order, drawing facts from BUILD_LOG.md and hardening-log.json — every number in it must be a real measured number from the logs, never an estimate: What Sikia is; capture placeholder; Quickstart for judges; How Codex was used; Prior art; Defense in depth; Hardening data; Known limits; Architecture; Naming.
+> Checkpoint commit: ship: README.
+
+### Actions
+
+- Wrote the README in the requested order, beginning with the spreadsheet-exodus wound and “settings pages are finite; people aren't,” then added the human capture placeholder and the exact fresh-clone command verified in Phase 4.
+- Documented build-time and runtime Codex roles, three timestamped owner decisions, the feedback-session placeholder, primary prior-art links, the two-layer boundary, the nine invariants, and the Sikia/Badilika/Kiini naming.
+- Built the timing table exclusively from recorded end-to-end results and made the hardening table explicitly separate 25 planned requests from 1 measured Phase 3 request. Unrun classes are marked “not measured,” never assigned invented percentages.
+
+### Key decisions
+
+- State the incomplete hardening outcome prominently: only accessibility has Phase 3 evidence (0/1 done); no ≥70% P0 claim is made.
+- Describe the Swahili mechanism exactly as implemented—local detection plus one `gpt-5.4-nano` Responses API call—and distinguish passing unit coverage from the blocked live confirmation.
+- Use `npm ci`, not `npm install`, in the one-line judge path because the fresh-clone test observed that only the former preserved the tagged checkout.
+
+### NEEDS HUMAN
+
+- Review README claims, add the `/feedback` session ID, and insert the 60-second capture link in the two marked placeholders. Live hardening and clean-clone mutation remain the Phase 3/4 key-dependent blockers already recorded above.
