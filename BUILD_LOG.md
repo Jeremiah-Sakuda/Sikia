@@ -400,3 +400,30 @@ This append-only log records each user prompt, the resulting actions, and the ke
 ### NEEDS HUMAN
 
 - Provide `OPENAI_API_KEY`, then rerun both Swahili taxonomy requests and `npm run harden`. Phase 3 measured only 1 of 6 requested Swahili trials (0 done / 1 reverted); no per-class success rates can be claimed from this phase, and no tailor-rule iterations were justified without those results.
+
+## 2026-07-17 — Autonomous completion Phase 4: demo reset and judge runbook
+
+### Prompt
+
+> Phase 4 — Demo reset + judge runbook (no live runs).
+>
+> scripts/demo-reset.ts (npm run demo:reset): force-reset userland to a tagged demo-start commit (create the tag at the current clean state) so filming retakes and judge sessions always start identical.
+> Verify the full fresh-clone path: in a clean temp directory, clone the repo and follow your own quickstart to a running app. Fix anything that breaks. The target: a stranger with Codex CLI and an OpenAI key goes from clone to a working mutation in under 5 minutes.
+> Checkpoint commit: ship: demo reset + verified quickstart.
+
+### Actions
+
+- Added `scripts/demo-reset.ts` and `npm run demo:reset`. The script verifies the immutable `demo-start` tag, refuses to discard dirty non-userland build work, resets the checkout to the tag, and removes only untracked userland files.
+- Committed and pushed `0482158` as `ship: demo reset + verified quickstart`, then created and pushed `demo-start` at that clean checkpoint.
+- Cloned the GitHub repository into `/tmp`, installed 312 locked packages, and started the complete app. The shell served on port 3000, `/shell-config` returned the iframe URL, and Vite served userland on port 5173; initial clone-to-ready operations completed in seconds.
+- The first runbook attempt with `npm install` rewrote `package-lock.json`, and the reset correctly stopped rather than discarding it. Repeating from a clean lockfile with `npm ci` left the checkout clean, and `npm run demo:reset` completed with the workshop-ready message and a clean status.
+
+### Key decisions
+
+- Make `npm ci` the judge installation command because it is deterministic and preserves the tagged checkout; the observed `npm install` lockfile rewrite is incompatible with safe reset behavior.
+- Refuse a reset when non-userland files are dirty. A filming helper may discard dashboard mutations, but it must not silently erase active build work.
+- Tag the checkpoint containing the reset script itself, so the command remains available after every reset even though later documentation-only commits may no longer be present in that local demo checkout.
+
+### NEEDS HUMAN
+
+- The clean clone reached a running shell and dashboard well under five minutes, but a working mutation could not be verified because this environment has no `OPENAI_API_KEY`. Repeat one scoped request from the clean clone after providing the documented prerequisite.
