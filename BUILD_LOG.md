@@ -298,3 +298,34 @@ This append-only log records each user prompt, the resulting actions, and the ke
 - Do not propose a tailor-rule change for the proof-beat scope mismatch: the pay schedule already existed in the profile, while the current rule correctly requires new colors in `tokens.ts`; forcing the expected seed-plus-Bills diff would duplicate data or hardcode colors.
 - Treat the initial proof refusal as invalid environmental contamination and rerun from the same tagged baseline after protecting the unrelated untracked files.
 - Record the Swahili run as failed evidence rather than inferring success from correct language comprehension; terminal SSE and committed file state remain authoritative.
+
+## 2026-07-17 — Build the warm kernel shell
+
+### Prompt
+
+> Read AGENTS.md. This sprint builds the shell — the kernel-served UI around the userland iframe. Design register: warm, analog, deliberate — cream and earth tones, generous type, soft edges. The shell should feel like a well-kept workshop, in deliberate contrast to the userland's cold defaults. The user never sees the words "patch," "diff," "Codex," or "validation" — shell copy says things like "heard you," "working on it," "done — it's yours," "that part isn't mine to change," "that didn't work — I've put everything back."
+>
+> Build in shell/:
+>
+> **Layout:** userland in an iframe (src: the Vite dev server URL from config) filling most of the viewport; a shell column beside it.
+> **Request box** at the top of the column. Placeholder: "Sema — tell Sikia what to change." Disabled with a friendly busy state while a run is active (server returns 409).
+> **Workshop view** consuming GET /events (SSE): a vertical sequence — Heard you → Planning → Making the change (stream the diff here in a monospace panel as diff events arrive) → Checking the work → final state. Always show an elapsed timer from request start. **Design against measured reality: a grant takes ~33s, a refusal ~17s, a failed-and-reverted request ~59s.** Four static labels over 33 seconds is a long time to look at nothing — the streaming diff is what makes the wait watchable, so it is no longer optional. Degrade to labels only if streaming proves unstable during Sprint 5.
+> **Changelog** below: GET /log rendered newest-first — the commit message (the user's own words, any language) as the headline, relative date, files-touched count, and a one-click Undo button per entry calling POST /revert/:sha. After a revert, refresh the log (the revert appears as its own entry: "Put back: '<original words>'").
+> **Suggested chips** under the request box — six, clickable to fill the box: "Make everything easier to read", "Warmer colors, less white", "Color my bills by which paycheck they land after", "Show me what's due first", "Thicker lines on the chart and a bigger legend", "Fanya maandishi makubwa".
+> **Status states:** Idle / Working / Done / Refused / Reverted, each visually distinct, with the plain-language copy above. Refused and Reverted must feel calm, not alarming. **Reverted has two copy variants** the kernel distinguishes: a *failure* revert ("that didn't work — I've put everything back the way it was") and a *no-op* revert, where Codex produced no diff at all ("I couldn't work out how to do that one — nothing's changed"). The second must never claim anything was undone; nothing happened.
+>
+> Plain React served by the kernel. No new dependencies.
+
+### Actions
+
+- Replaced the vanilla shell with a strict React/Vite shell compiled to ignored `shell/dist/` and served by Express; the dev runner now builds and watches the shell beside the existing userland Vite server.
+- Added the warm two-column workshop, configured iframe URL endpoint, request form, six suggestion chips, five-stage SSE timeline, elapsed timer, streamed touched-path panel, calm terminal states, product-only changelog, relative dates, and one-click undo.
+- Enriched existing file-change events with their changed-path summaries so the shell receives meaningful streaming content rather than a repeated generic label.
+- Added four shell tests covering static composition, revert headlines, relative time, the streamed workflow, busy controls, Done, and both rollback meanings. Strict typecheck, both lint scopes, all 19 tests, and both production builds pass.
+- Verified the live kernel-served shell in the in-app browser: configured iframe loaded, five stages and six chips rendered, the Swahili chip filled the box and enabled submission, no forbidden engineering terms were visible, and the browser console was clean.
+
+### Key decisions
+
+- Keep React build-time only through the existing Vite dependency: Express serves `shell/dist/`, while the configured userland development URL comes from `/shell-config` so shell code never imports across the kernel boundary.
+- Show only history entries whose touched files are entirely under `userland/src/`; this preserves the owner's memoir and prevents build-time engineering commits from leaking internal language into the product.
+- Preserve exact terminal semantics in the UI: failure rollback says work was restored, while a no-op says nothing changed and never implies an undo occurred.

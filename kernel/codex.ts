@@ -27,6 +27,17 @@ function stringAt(record: Record<string, unknown>, key: string): string | undefi
   return typeof record[key] === "string" ? record[key] : undefined;
 }
 
+function summarizeChanges(item: Record<string, unknown>): string | undefined {
+  if (!Array.isArray(item.changes)) return undefined;
+  const changes = item.changes.flatMap((value) => {
+    if (!isRecord(value)) return [];
+    const path = stringAt(value, "path");
+    if (path === undefined) return [];
+    return [`${stringAt(value, "kind") ?? "change"} ${path}`];
+  });
+  return changes.length === 0 ? undefined : changes.join("\n");
+}
+
 function parseEvent(value: unknown): CodexEvent {
   if (!isRecord(value)) return { type: "unknown", summary: "Non-object JSONL event", raw: {} };
   const originalType = stringAt(value, "type") ?? "unknown";
@@ -37,6 +48,7 @@ function parseEvent(value: unknown): CodexEvent {
   const error = isRecord(value.error) ? value.error : {};
   const summary = stringAt(item, "text")
     ?? stringAt(item, "command")
+    ?? summarizeChanges(item)
     ?? stringAt(value, "message")
     ?? stringAt(error, "message")
     ?? (type === "unknown" ? `Unknown event: ${originalType}` : originalType);

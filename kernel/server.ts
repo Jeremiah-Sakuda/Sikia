@@ -1,7 +1,7 @@
 import express, { type Request, type Response } from "express";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { SHELL_DIR, USERLAND_DIR } from "./config.js";
+import { SHELL_DIR, USERLAND_DIR, USERLAND_DEV_URL } from "./config.js";
 import { runGauntlet } from "./gauntlet.js";
 import { log, resetHard, revert } from "./git.js";
 
@@ -39,7 +39,7 @@ async function processRequest(text: string): Promise<void> {
       if (event.files !== undefined) broadcast("diff", { files: event.files });
       else broadcast(event.type, { message: shellSafe(event.message ?? "Working on it.") });
     });
-    if (result.outcome === "done") broadcast("done", { message: "Done.", files: result.files });
+    if (result.outcome === "done") broadcast("done", { message: "Done — it's yours.", files: result.files });
     else if (result.outcome === "refused") broadcast("refused", { message: "That part isn't mine to change — it keeps everything else safe" });
     else if (result.failureReason === "no-op") broadcast("reverted", { message: "I couldn't work out how to do that one — nothing's changed." });
     else broadcast("reverted", { message: "That one didn't work — I've put everything back the way it was" });
@@ -56,6 +56,7 @@ async function processRequest(text: string): Promise<void> {
 export const app = express();
 app.use(express.json({ limit: "16kb" }));
 app.use("/userland", express.static(resolve(USERLAND_DIR, "dist")));
+app.get("/shell-config", (_request: Request, response: Response) => response.json({ userlandUrl: USERLAND_DEV_URL }));
 app.use(express.static(SHELL_DIR));
 
 app.get("/events", (_request: Request, response: Response) => {

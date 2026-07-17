@@ -6,16 +6,7 @@
     <title>Sikia</title>
   </head>
   <body>
-    <main>
-      <h1>Sikia</h1>
-      <form id="request-form">
-        <label for="request">Request</label>
-        <textarea id="request" required></textarea>
-        <button type="submit">Run</button>
-      </form>
-      <pre id="events" aria-live="polite"></pre>
-      <iframe id="dashboard" src="/userland/" title="Dashboard"></iframe>
-    </main>
-    <script src="/app.js"></script>
+    <div id="root"></div>
+    <script type="module" src="/main.tsx"></script>
   </body>
 </html>

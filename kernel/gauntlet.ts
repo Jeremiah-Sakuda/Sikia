@@ -59,7 +59,7 @@ async function validate(signal: AbortSignal): Promise<ToolResult> {
 
 function progressFromCodex(event: CodexEvent): ProgressEvent {
   if (event.itemType === "agent_message") return { type: "plan", message: event.summary };
-  if (event.itemType === "file_change") return { type: "diff", message: "Putting the change together." };
+  if (event.itemType === "file_change") return { type: "diff", message: event.summary };
   return { type: "status", message: "Working on it." };
 }
 

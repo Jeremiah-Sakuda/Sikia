@@ -13,5 +13,5 @@
     "skipLibCheck": true,
     "noEmit": true
   },
-  "include": ["kernel/**/*.ts", "scripts/**/*.ts", "userland/**/*.ts", "userland/**/*.tsx"]
+  "include": ["kernel/**/*.ts", "scripts/**/*.ts", "shell/**/*.ts", "shell/**/*.tsx", "userland/**/*.ts", "userland/**/*.tsx"]
 }
