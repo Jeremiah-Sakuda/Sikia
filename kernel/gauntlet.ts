@@ -9,6 +9,7 @@ export type RequestOutcome = "done" | "refused" | "reverted";
 
 export interface RequestResult {
   request: string;
+  requestClass?: string;
   outcome: RequestOutcome;
   retries: number;
   durationMs: number;
@@ -18,6 +19,7 @@ export interface RequestResult {
 
 export interface HardeningEntry {
   request: string;
+  requestClass?: string;
   outcome: RequestOutcome;
   retries: number;
   durationMs: number;
@@ -68,7 +70,13 @@ async function askCodex(instruction: string, onProgress: ProgressListener, signa
 }
 
 export function toHardeningEntry(result: RequestResult): HardeningEntry {
-  const entry = { request: result.request, outcome: result.outcome, retries: result.retries, durationMs: result.durationMs };
+  const entry = {
+    request: result.request,
+    ...(result.requestClass === undefined ? {} : { requestClass: result.requestClass }),
+    outcome: result.outcome,
+    retries: result.retries,
+    durationMs: result.durationMs,
+  };
   return result.failureReason === undefined ? entry : { ...entry, failureReason: result.failureReason };
 }
 
@@ -84,7 +92,7 @@ export async function appendHardeningEntry(entry: HardeningEntry): Promise<void>
   await writeFile(HARDENING_LOG_PATH, `${JSON.stringify(entries, null, 2)}\n`);
 }
 
-export async function runGauntlet(userText: string, onProgress: ProgressListener = () => undefined): Promise<RequestResult> {
+export async function runGauntlet(userText: string, onProgress: ProgressListener = () => undefined, requestClass?: string): Promise<RequestResult> {
   const started = Date.now();
   const totalController = new AbortController();
   const totalTimer = setTimeout(() => totalController.abort(), TOTAL_REQUEST_TIMEOUT_MS);
@@ -105,6 +113,7 @@ export async function runGauntlet(userText: string, onProgress: ProgressListener
           await resetHard();
           const noOp: RequestResult = {
             request: userText,
+            ...(requestClass === undefined ? {} : { requestClass }),
             outcome: "reverted",
             retries,
             durationMs: Date.now() - started,
@@ -117,14 +126,14 @@ export async function runGauntlet(userText: string, onProgress: ProgressListener
         const fence = checkFence(files);
         if (!fence.ok) {
           await resetHard();
-          return { request: userText, outcome: "refused", retries, durationMs: Date.now() - started, failureReason: fence.violations.join(", "), files };
+          return { request: userText, ...(requestClass === undefined ? {} : { requestClass }), outcome: "refused", retries, durationMs: Date.now() - started, failureReason: fence.violations.join(", "), files };
         }
 
         const result = await validate(totalController.signal);
         if (totalController.signal.aborted) throw new Error("Total request timeout");
         if (result.ok) {
           await commit(userText);
-          return { request: userText, outcome: "done", retries, durationMs: Date.now() - started, files };
+          return { request: userText, ...(requestClass === undefined ? {} : { requestClass }), outcome: "done", retries, durationMs: Date.now() - started, files };
         }
 
         failureReason = result.output;
@@ -142,6 +151,7 @@ export async function runGauntlet(userText: string, onProgress: ProgressListener
     await resetHard();
     const reverted: RequestResult = {
       request: userText,
+      ...(requestClass === undefined ? {} : { requestClass }),
       outcome: "reverted",
       retries,
       durationMs: Date.now() - started,

@@ -352,3 +352,24 @@ This append-only log records each user prompt, the resulting actions, and the ke
 - Compare complete porcelain lines, not only path names, so unrelated pre-existing status is excluded without weakening the allowlist fence applied to request-created changes.
 - Scope recovery and rollback to `userland/`; a repository-wide hard reset would violate the instruction to preserve unrelated owner work.
 - Keep both timeout values unchanged and rely on the existing fake-timer total-budget behavior test plus fixed-value configuration coverage.
+
+## 2026-07-17 — Autonomous completion Phase 2: taxonomy
+
+### Prompt
+
+> Phase 2 — Taxonomy (no live runs needed).
+> Write scripts/taxonomy.json with 25 requests, ordered so P0 classes run first: personal logic (5), accessibility (6, including exactly 2 in Swahili), theming (4), sorting/filtering (4), layout (2), widget-add (2), out-of-fence (2 with the specified reachable forbidden targets). Ensure npm run harden records per-class results.
+> Checkpoint commit: harden: 25-request taxonomy, P0-first.
+
+### Actions
+
+- Replaced the placeholder list with 25 explicit `{ class, priority, request }` records: 19 P0 requests first, followed by six P1 layout, widget, and boundary cases.
+- Added the required personal-logic family, exactly two Swahili accessibility prompts, and the two exact out-of-fence prompts aimed at `userland/AGENTS.md` and `userland/vite.config.ts`.
+- Propagated `requestClass` through all gauntlet outcomes so reverted entries written internally and done/refused entries written by the hardener share one per-class schema; the runner prints completion rates by class.
+- Added taxonomy structure/count/order tests. Strict typecheck, both lint scopes, and all 24 tests pass.
+
+### Key decisions
+
+- Store class and priority beside each request instead of inferring them from array position, making later rate calculations auditable.
+- Pass class context into the gauntlet so failure logging remains single-write and does not create duplicate hardening entries.
+- Keep all P0 classes contiguous at the front to spend live-run credits on the success-threshold classes first.
