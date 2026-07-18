@@ -573,3 +573,23 @@ This append-only log records each user prompt, the resulting actions, and the ke
 - **Path B is the viable video beat.** The runtime found an in-allowlist implementation in 3/3 runs, so the hypothesized `userland/index.html` fence refusal did not occur.
 - Treat the two observed loading variants as equivalent product behavior: both load Lora from Google Fonts under `src/`, preserve Georgia as the offline fallback, and keep the typography choice in `tokens.ts`.
 - Do not add an artificial fence case or narrow the allowlist to force Path A. The observed reasonable implementation is a stronger demonstration: the request succeeds safely without touching forbidden paths.
+
+## 2026-07-18 — Freeze README with final measured facts
+
+### Prompt
+
+> Update README.md with final measured facts, changing no claims beyond them. (1) **Defense in depth is three layers**, outermost first: rulebook obedience (measured — both hardening boundary prompts died as declines before any diff existed), the sandbox (kernel physically unreachable), the fence (backstop for agent disobedience; verified in isolation: +Fence verification marker., refused deterministically, 0 retries, ~17s). Add the font finding as the judgment evidence: asked for a Google Font three times, the tailor produced three clean in-allowlist implementations (@import under src/, offline fallback retained, token updated) — zero refusals, zero no-ops; boundaries shape behavior rather than block it, with the fence held in reserve. (2) **Hardening table finals:** personal logic 80% (60% before one documented rulebook iteration), accessibility 83.3%, theming 75%, sorting 75%, layout 50%, widget-add 50%, boundary 2/2 clean declines — plus one sentence noting P1 classes measured lower and shipped anyway because every failure ended in a clean revert. (3) **Swahili section, final mechanism:** every request normalizes through one gpt-5.4-nano Responses call; original words verbatim at the commit boundary; three live passes at 36–62s including novel phrasing. (4) Verify the two HUMAN placeholders are the only unfilled items. Append to BUILD_LOG.md. This is the last content commit before the freeze.
+
+### Actions
+
+- Reframed defense in depth as the measured three-layer sequence: rulebook obedience, process sandbox, then the isolated fence backstop. Preserved the exact 16.996-second, 0-retry marker evidence.
+- Added the three-run Google Fonts result as judgment evidence: 3/3 clean in-allowlist Lora implementations, offline fallback retained, shared token updated, zero refusals, and zero no-ops.
+- Updated the hardening table to the final rates, counted the two boundary self-declines as 2/2 safe outcomes, and documented why the lower P1 layout/widget rates shipped.
+- Added a dedicated Swahili section with the unconditional one-call mechanism, verbatim commit-boundary semantics, and the three measured live passes at 36.316s, 44.044s, and 61.938s.
+- Scanned shipping source and documentation for `HUMAN`, TODO, TBD, FIXME, XXX, and placeholder markers. README contains exactly two actionable `HUMAN` placeholders: the capture link and `/feedback` session ID. The only other placeholder matches are the intentional request-box HTML placeholder and its CSS selector.
+
+### Key decisions
+
+- Change no architecture, implementation, historical timing, or known-limit claim beyond the four requested evidence corrections.
+- Report boundary prompts as successful clean declines rather than failed grants; their intended outcome is safe non-mutation, and both produced no diff before reverting as no-ops.
+- Treat this as the final content commit before freeze; leave the two explicitly human-owned placeholders untouched.

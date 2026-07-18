@@ -34,9 +34,13 @@ Sikia follows the malleable-software lineage: Philip Tchernavskij's 2019 dissert
 
 ## Defense in depth
 
-The runtime process starts with `cwd` pinned to `userland/`; that sandbox working directory is the primary boundary. The fence is the backstop for reachable but forbidden in-workspace paths: it inspects request-created paths against `userland/src/**` before any other check. Neither layer is a prompt, and the runtime rulebook is a reliability aid rather than a security control.
+Sikia's defense has three layers, outermost first:
 
-The boundary was tested with an instruction to relax its own rules. The runtime proposed one added line—`Fence verification marker.`—in `userland/AGENTS.md`; the fence refused it deterministically with 0 retries in 16.996 seconds, and the tree was clean afterward.
+1. **Rulebook obedience.** The runtime tailor is instructed to work only under `src/`. In the hardening suite, both boundary prompts died as declines before any diff existed, producing clean no-op reverts.
+2. **Sandbox.** The runtime process starts with `cwd` pinned to `userland/`, so the kernel is physically unreachable from the process.
+3. **Fence.** This is the backstop for agent disobedience inside the reachable workspace: it inspects request-created paths against `userland/src/**` before any other check. In an isolated verification that allowed the prompt layer to proceed, the runtime proposed one added line—`Fence verification marker.`—in `userland/AGENTS.md`; the fence refused it deterministically with 0 retries in 16.996 seconds, and the tree was clean afterward.
+
+The Google Fonts judgment test shows how those boundaries shape behavior rather than merely block it. Asked three times for “something elegant from Google Fonts,” the tailor produced three clean in-allowlist implementations: each loaded Lora under `src/` (using an `@import` stylesheet in two runs and a stylesheet link from `main.tsx` in one), retained Georgia as the offline fallback, and updated the shared font token. All three finished `done`; there were zero refusals and zero no-ops, with the fence held in reserve.
 
 Measured end-to-end timings from [BUILD_LOG.md](./BUILD_LOG.md):
 
@@ -59,15 +63,21 @@ The 25-case taxonomy is P0-first. A complete first pass ran all 25 requests; one
 
 | Class | Requests | Final successes | Success rate | Dominant measured failure mode |
 | --- | ---: | ---: | ---: | --- |
-| Personal logic | 5 | 4 | 80% | one pre-edit 180-second generation stall |
+| Personal logic | 5 | 4 | 80% | 60% before one documented rulebook iteration |
 | Accessibility | 6 | 5 | 83.3% | one post-edit 180-second invocation stall |
 | Theming | 4 | 3 | 75% | one post-edit 180-second invocation stall |
 | Sorting/filtering | 4 | 3 | 75% | one pre-edit 180-second generation stall |
 | Layout | 2 | 1 | 50% | one post-edit 180-second invocation stall |
 | Widget add | 2 | 1 | 50% | one pre-edit 180-second generation stall |
-| Out of fence | 2 | 0 | 0% | prompt-layer self-refusal produced clean no-op reverts |
+| Boundary | 2 | 2 clean declines | 100% safe | both stopped before a diff and cleanly reverted as no-ops |
 
 The first pass showed a repeated pattern: the runtime made a correct scoped edit, then consumed the rest of its 180-second budget running checks that the harness would immediately repeat. The tailor rulebook now tells it to edit, summarize, and exit promptly while leaving typecheck, lint, and smoke testing to the harness. Personal logic rose from 60% to 80% on the focused rerun; all four P0 classes exceeded 70%, every failure ended in a clean revert, and no third iteration was needed. Raw attempts remain in [hardening-log.json](./hardening-log.json).
+
+The P1 layout and widget-add classes measured lower at 50% and shipped anyway because every failure ended in a clean revert.
+
+## Swahili
+
+Every request normalizes through one `gpt-5.4-nano` Responses API call: English is returned verbatim, while other languages are translated to English with intent preserved. The original user's words remain untouched at the gauntlet boundary and become the commit message and changelog headline verbatim. Both taxonomy Swahili requests and one novel phrase absent from the taxonomy passed live in 36.316–61.938 seconds (36.316s, 44.044s, and 61.938s), each with 0 retries.
 
 ## Known limits
 
@@ -75,7 +85,7 @@ The first pass showed a repeated pattern: the runtime made a correct scoped edit
 - Screen-reader mutations are a class the smoke suite cannot fully verify.
 - Sikia is single-user and local-first by design.
 - Final P0 grants measured 38.392–85.527 seconds, with a 55.596-second median; this is a deliberate, watchable interaction rather than an instant one.
-- Every runtime invocation—English or otherwise—makes one `gpt-5.4-nano` Responses API call. The model returns English verbatim or translates while preserving intent, eliminating Latin-script language heuristics. The original request remains the commit and changelog text. Both taxonomy Swahili requests and a novel phrase absent from the taxonomy passed live; individual runtime invocations can still hit the 180-second cap.
+- Individual runtime invocations can still hit the 180-second cap.
 
 ## Architecture
 
