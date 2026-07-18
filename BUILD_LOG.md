@@ -499,3 +499,20 @@ This append-only log records each user prompt, the resulting actions, and the ke
   4. Film demo takes using `npm run demo:reset` between takes.
   5. Make the final video cut and upload it to YouTube.
   6. Complete the submission form.
+
+## 2026-07-17 — Clarify API-key placement
+
+### Prompt
+
+> Where should the key be placed? .env or .env_local?
+
+### Actions
+
+- Inspected the current dev command, ignore rules, and all `OPENAI_API_KEY` reads.
+- Confirmed that the kernel reads only `process.env.OPENAI_API_KEY`; the repository does not load `.env` or `.env.local` files today.
+
+### Key decisions
+
+- Recommend exporting the key in the launching shell for the current code, because that is the only configured path.
+- Do not place the secret in a Vite-prefixed variable or userland file, where it could become browser-visible.
+- If file-based local configuration is added later, prefer `.env.local`, add it to `.gitignore`, and load it explicitly in the kernel startup command.
