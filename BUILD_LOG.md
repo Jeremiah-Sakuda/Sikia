@@ -593,3 +593,57 @@ This append-only log records each user prompt, the resulting actions, and the ke
 - Change no architecture, implementation, historical timing, or known-limit claim beyond the four requested evidence corrections.
 - Report boundary prompts as successful clean declines rather than failed grants; their intended outcome is safe non-mutation, and both produced no diff before reverting as no-ops.
 - Treat this as the final content commit before freeze; leave the two explicitly human-owned placeholders untouched.
+
+## 2026-07-18 — Repair demo-reset history incident and prevent recurrence
+
+### Prompt
+
+> A live incident to diagnose, repair, and harden against. Append the full story to BUILD_LOG.md when done.
+> **Symptoms:** local main is at 04ebd9d ("chore: keep planning docs local") sitting on top of 0482158 (tag: demo-start), while origin/main is at 8902272 with three commits local doesn't have (4258efd, d8bc11f, 8902272 — the Swahili normalization, the beat-4 font verification, and the final README). The cause: npm run demo:reset hard-resets to the demo-start tag, which was planted Friday mid-project rather than at the branch tip, so the reset time-traveled the entire checkout back three commits, and a new commit was then made on that stale base. There is also a stash (stash@{0}, "local prd") containing uncommitted edits to sikia_prd.md that must not be lost.
+> **Repair, verifying each precondition before acting:**
+>
+> Confirm origin/main is 8902272 and that 04ebd9d contains only the sikia_prd.md untrack + nothing else worth keeping (git show --stat 04ebd9d). Then git reset --hard origin/main. If the destructive-operation approval blocks you, stop and ask rather than working around it.
+> Redo the untrack cleanly on the correct base: git rm --cached sikia_prd.md, append sikia_prd.md to .gitignore, commit as chore: keep planning docs local, push.
+> Restore the stashed PRD edits with git show stash@{0}:sikia_prd.md > sikia_prd.md (NOT stash pop — the file is untracked now), verify the file's contents look like a PRD, then git stash drop.
+> Move the tag to the true tip: git tag -f demo-start && git push -f origin demo-start.
+>
+> **Harden so this class of failure is impossible:** update scripts/demo-reset.ts to refuse when the tag is stale — before resetting, verify demo-start is an ancestor-or-equal of the current HEAD *and* that resetting to it would only remove commits whose changed files are entirely under userland/src/ (i.e., mutation commits). If any commit between the tag and HEAD touches files outside userland/src/, abort with: "demo-start is stale — it would erase engineering work. Re-plant it at the current tip with: git tag -f demo-start && git push -f origin demo-start". Add a unit test for the stale-tag refusal alongside the existing dirty-tree refusal test.
+> **Verify the whole system is back:** grep -c "gpt-5.4-nano" kernel/codex.ts returns ≥1; npm ci (the lockfile may differ across the restored commits); typecheck, both lints, full test suite; npm run demo:reset completes clean; npm run dev boots shell on 3000 and userland on 5173. Report each check's result. Commit the hardening as fix: demo-reset refuses stale tags and push.
+
+### Incident and repair
+
+- Refreshed the remote before acting. Verified `origin/main` was exactly `8902272`, local `HEAD` was `04ebd9d`, and `git show --stat 04ebd9d` contained only the 238-line tracked deletion of `sikia_prd.md`. The only tracked working-tree delta was the uncommitted ignore entry that the clean redo would recreate.
+- Verified `stash@{0}` was `On main: local prd` and contained only the PRD edit (48 insertions, 32 deletions). With all preconditions satisfied, the approved `git reset --hard origin/main` restored the missing Swahili, Beat 4, and final README history.
+- Repeated the untrack on the correct base: removed only `sikia_prd.md` from the index, added it to `.gitignore`, committed `cb5e46f` as `chore: keep planning docs local`, and pushed.
+- Restored with the exact object lookup `git show stash@{0}:sikia_prd.md > sikia_prd.md`, never `stash pop`. Verified a coherent 253-line, 4,371-word `# Sikia — Product Requirements Document` with product scope, users, architecture, demo plan, risks, and submission checklist; then dropped only the verified stash.
+- Re-planted and force-updated only the `demo-start` tag at the repaired tip. The local PRD remains present, ignored, and untracked.
+
+### Prevention
+
+- `scripts/demo-reset.ts` now refuses before reset unless `demo-start` is an ancestor-or-equal of `HEAD` and every file changed by every commit in `demo-start..HEAD` is under `userland/src/`.
+- The implementation uses the commit range's full `git log --name-only`, not a net tree diff, so an engineering file added and later removed cannot evade the guard.
+- Added four unit cases: dirty non-userland work refuses; an ancestor tag with an engineering commit refuses; a non-ancestor tag refuses; mutation-only commits under `userland/src/` are allowed.
+- Committed and pushed `71052d7` as `fix: demo-reset refuses stale tags`. Before moving the tag, ran the real command against that intentionally stale state: it exited 1 with the exact required message and left `HEAD` unchanged. Re-planted `demo-start` at `71052d7`; the positive reset then completed with `Sikia is back at demo-start. The workshop is ready.` and retained the same HEAD.
+
+### Verification results
+
+| Check | Result |
+| --- | --- |
+| `grep -c "gpt-5.4-nano" kernel/codex.ts` | `1` — restored normalization present |
+| `npm ci` | passed; 312 packages installed, 0 vulnerabilities |
+| `npm run typecheck` | passed |
+| shell lint | passed |
+| userland lint | passed |
+| full Vitest suite | 10 files, 33 tests passed |
+| stale-tag integration | refused with the exact required message; HEAD unchanged |
+| `npm run demo:reset` after re-plant | passed cleanly at equal tag/HEAD |
+| `npm run dev` | shell listening on 3000; Vite userland ready on 5173 |
+| endpoint probes | `/shell-config` returned the 5173 userland URL; `/userland/` returned the expected Vite HTML |
+| local-only data | PRD restored and ignored; stash list empty |
+
+### Key decisions
+
+- Honor the destructive reset only after independently verifying the remote tip, stale commit contents, stash identity, and working-tree delta; no approval workaround was used.
+- Define staleness from commit history, not current file state. The dangerous operation is losing engineering commits even when their changes cancel out later.
+- Keep mutation-history resets available: commits touching only `userland/src/**` remain safe to discard for a demo retake. Any engineering or documentation commit requires explicitly re-planting the tag.
+- Re-plant `demo-start` again after this incident-log commit, because the log itself is engineering history outside `userland/src/` and must never sit ahead of the reset tag.
