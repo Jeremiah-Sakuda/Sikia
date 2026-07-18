@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { instructionForCodex, needsEnglishTranslation } from "./codex.js";
+import { instructionForCodex } from "./codex.js";
 
 const originalKey = process.env.OPENAI_API_KEY;
 
@@ -10,33 +10,53 @@ afterEach(() => {
 });
 
 describe("instruction translation", () => {
-  it("passes English instructions through without an API call", async () => {
-    const fetchMock = vi.fn();
-    vi.stubGlobal("fetch", fetchMock);
-    await expect(instructionForCodex("Make the text bigger")).resolves.toBe("Make the text bigger");
-    expect(fetchMock).not.toHaveBeenCalled();
-  });
-
-  it("detects the two Swahili taxonomy requests", () => {
-    expect(needsEnglishTranslation("Fanya maandishi makubwa.")).toBe(true);
-    expect(needsEnglishTranslation("Ongeza ukubwa wa maandishi na ufanye mistari ya chati iwe minene.")).toBe(true);
-  });
-
-  it("translates once while retaining concrete values", async () => {
-    process.env.OPENAI_API_KEY = "test-key";
+  function mockTranslation(text: string): ReturnType<typeof vi.fn> {
     const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({
-      output: [{ content: [{ type: "output_text", text: "Make the text size 18 and use cream #faf6f0." }] }],
+      output: [{ content: [{ type: "output_text", text }] }],
     }), { status: 200 }));
     vi.stubGlobal("fetch", fetchMock);
+    return fetchMock;
+  }
 
-    await expect(instructionForCodex("Fanya maandishi 18 na cream #faf6f0.")).resolves.toBe(
-      "Make the text size 18 and use cream #faf6f0.",
+  it("routes English through the API and returns it verbatim", async () => {
+    process.env.OPENAI_API_KEY = "test-key";
+    const fetchMock = mockTranslation("Make the text bigger");
+    await expect(instructionForCodex("Make the text bigger")).resolves.toBe("Make the text bigger");
+    expect(fetchMock).toHaveBeenCalledOnce();
+    const init = fetchMock.mock.calls[0]?.[1] as RequestInit;
+    expect(JSON.parse(String(init.body))).toMatchObject({
+      instructions: "If this text is not English, translate it to English preserving intent exactly; if it is English, return it verbatim.",
+      input: "Make the text bigger",
+    });
+  });
+
+  it("translates the first Swahili taxonomy request", async () => {
+    process.env.OPENAI_API_KEY = "test-key";
+    const fetchMock = mockTranslation("Make the text bigger.");
+    await expect(instructionForCodex("Fanya maandishi makubwa.")).resolves.toBe("Make the text bigger.");
+    expect(fetchMock).toHaveBeenCalledOnce();
+  });
+
+  it("translates the second Swahili taxonomy request", async () => {
+    process.env.OPENAI_API_KEY = "test-key";
+    const fetchMock = mockTranslation("Make the chart lines thicker and its legend larger.");
+    await expect(instructionForCodex("Ongeza unene wa mistari ya chati na ufanye maelezo yake yawe makubwa.")).resolves.toBe(
+      "Make the chart lines thicker and its legend larger.",
     );
     expect(fetchMock).toHaveBeenCalledOnce();
   });
 
-  it("requires the documented judge prerequisite for non-English requests", async () => {
+  it("translates novel Swahili absent from the taxonomy", async () => {
+    process.env.OPENAI_API_KEY = "test-key";
+    const fetchMock = mockTranslation("Show me the bills that are still unpaid.");
+    await expect(instructionForCodex("Nionyeshe bili ambazo bado hazijalipwa.")).resolves.toBe(
+      "Show me the bills that are still unpaid.",
+    );
+    expect(fetchMock).toHaveBeenCalledOnce();
+  });
+
+  it("requires the documented judge prerequisite for every request", async () => {
     delete process.env.OPENAI_API_KEY;
-    await expect(instructionForCodex("Fanya maandishi makubwa.")).rejects.toThrow("OPENAI_API_KEY");
+    await expect(instructionForCodex("Make the text bigger")).rejects.toThrow("OPENAI_API_KEY");
   });
 });
