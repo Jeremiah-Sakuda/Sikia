@@ -49,30 +49,33 @@ Measured end-to-end timings from [BUILD_LOG.md](./BUILD_LOG.md):
 | Real dashboard, warm theme | done | 0 | 86.015 s |
 | Real dashboard, due-date sorting | done | 0 | 37.104 s |
 | Real dashboard, direct Swahili pass-through | reverted | 0 | 180.105 s |
+| Normalized Swahili, larger text | done | 0 | 61.938 s |
+| Normalized Swahili, chart accessibility | done | 0 | 36.316 s |
+| Novel Swahili, unpaid-bill filter | done | 0 | 44.044 s |
 
 ## Hardening data
 
-The 25-case taxonomy is P0-first. Phase 3 stopped after the first Swahili recurrence because the environment did not contain the required API key; the table distinguishes planned cases from cases actually measured rather than treating unrun requests as failures.
+The 25-case taxonomy is P0-first. A complete first pass ran all 25 requests; one evidence-driven iteration then reran the five personal-logic cases after a rulebook change. “Success” means `done` for ordinary changes and the expected safe terminal outcome for boundary cases.
 
-| Class | Planned | Measured | Success rate | Dominant measured failure mode |
+| Class | Requests | Final successes | Success rate | Dominant measured failure mode |
 | --- | ---: | ---: | ---: | --- |
-| Personal logic | 5 | 0 | not measured | not run |
-| Accessibility | 6 | 1 | 0% | 180-second direct-language stall |
-| Theming | 4 | 0 | not measured | not run |
-| Sorting/filtering | 4 | 0 | not measured | not run |
-| Layout | 2 | 0 | not measured | not run |
-| Widget add | 2 | 0 | not measured | not run |
-| Out of fence | 2 | 0 | not measured | not run |
+| Personal logic | 5 | 4 | 80% | one pre-edit 180-second generation stall |
+| Accessibility | 6 | 5 | 83.3% | one post-edit 180-second invocation stall |
+| Theming | 4 | 3 | 75% | one post-edit 180-second invocation stall |
+| Sorting/filtering | 4 | 3 | 75% | one pre-edit 180-second generation stall |
+| Layout | 2 | 1 | 50% | one post-edit 180-second invocation stall |
+| Widget add | 2 | 1 | 50% | one pre-edit 180-second generation stall |
+| Out of fence | 2 | 0 | 0% | prompt-layer self-refusal produced clean no-op reverts |
 
-No tailor-rule change was made from this incomplete dataset: the single failure was transport/language-path behavior, not evidence that `userland/AGENTS.md` needed stronger instructions. The smallest justified change was kernel-side translation for detected Swahili/non-ASCII requests, with the owner's original text still used verbatim for history. The translation path has unit coverage but needs the blocked live rerun before a P0 success claim can be made; raw historical attempts remain in [hardening-log.json](./hardening-log.json).
+The first pass showed a repeated pattern: the runtime made a correct scoped edit, then consumed the rest of its 180-second budget running checks that the harness would immediately repeat. The tailor rulebook now tells it to edit, summarize, and exit promptly while leaving typecheck, lint, and smoke testing to the harness. Personal logic rose from 60% to 80% on the focused rerun; all four P0 classes exceeded 70%, every failure ended in a clean revert, and no third iteration was needed. Raw attempts remain in [hardening-log.json](./hardening-log.json).
 
 ## Known limits
 
 - There is no capability sandbox: accepted userland code runs with the app's privileges.
 - Screen-reader mutations are a class the smoke suite cannot fully verify.
 - Sikia is single-user and local-first by design.
-- Meaningful real-dashboard grants measured 86.015–86.129 seconds; the product should be described honestly as roughly a 90-second interaction, not an instant one.
-- The Swahili path detects known Swahili terms (and non-ASCII scripts), makes one `gpt-5.4-nano` Responses API translation call, and sends only the English instruction to the runtime process. The original Swahili remains the commit and changelog text. Unit tests pass, but live confirmation is still blocked on an API key.
+- Final P0 grants measured 38.392–85.527 seconds, with a 55.596-second median; this is a deliberate, watchable interaction rather than an instant one.
+- Every runtime invocation—English or otherwise—makes one `gpt-5.4-nano` Responses API call. The model returns English verbatim or translates while preserving intent, eliminating Latin-script language heuristics. The original request remains the commit and changelog text. Both taxonomy Swahili requests and a novel phrase absent from the taxonomy passed live; individual runtime invocations can still hit the 180-second cap.
 
 ## Architecture
 

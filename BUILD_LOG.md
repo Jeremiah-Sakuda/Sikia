@@ -516,3 +516,39 @@ This append-only log records each user prompt, the resulting actions, and the ke
 - Recommend exporting the key in the launching shell for the current code, because that is the only configured path.
 - Do not place the secret in a Vite-prefixed variable or userland file, where it could become browser-visible.
 - If file-based local configuration is added later, prefer `.env.local`, add it to `.gitignore`, and load it explicitly in the kernel startup command.
+
+## 2026-07-17 — Complete language normalization and live hardening
+
+### Prompt
+
+> Key has been added to .env.local so that is unblocked. Additionally, the Swahili detection appears to match the two known taxonomy strings (Swahili is Latin-script, so the non-ASCII branch can't catch it), which means arbitrary Swahili from a judge would miss detection and stall. Replace detection entirely: route every incoming request through the existing gpt-5.4-nano Responses call with the instruction "If this text is not English, translate it to English preserving intent exactly; if it is English, return it verbatim." The original userText remains untouched at the gauntlet/commit boundary. Update the four translation tests, and add one using a Swahili phrase that appears nowhere in the taxonomy. Then, with OPENAI_API_KEY exported: run both taxonomy Swahili requests plus one novel Swahili request live, then the full npm run harden with up to three evidence-driven iterations per the Phase 3 rules, update the README hardening table with the real rates, and append everything to BUILD_LOG.md.
+
+### Actions
+
+- Added `.env.local` to `.gitignore` before reading or running anything; the secret file was never displayed or staged. Live commands exported it only into their child-process environment.
+- Removed language detection entirely. Every invocation now makes one `gpt-5.4-nano` Responses call with the exact requested normalize-or-translate instruction; `userText` remains unchanged in `runGauntlet` and therefore in commit messages and the changelog.
+- Reworked the four translation tests and added a fifth. Coverage now proves one-call English verbatim handling, both exact taxonomy translations, the novel phrase `Nionyeshe bili ambazo bado hazijalipwa.`, and the required-key failure path. Strict typecheck, both lints, and all 29 tests passed before live work.
+- Tagged and pushed `pre-harden-rerun-test`, then ran live work in an isolated Git worktree so the owner's `sikia_prd.md` edit and `main` stayed untouched.
+- Manual language proof: `Fanya maandishi makubwa.` → `done`, 0 retries, 61.938s, `tokens.ts`; `Ongeza unene wa mistari ya chati na ufanye maelezo yake yawe makubwa.` → `done`, 0 retries, 36.316s, `tokens.ts` + `Spending.tsx`; novel `Nionyeshe bili ambazo bado hazijalipwa.` → `done`, 0 retries, 44.044s, `Bills.tsx`. Git subjects were the exact original Swahili strings.
+- Ran all 25 taxonomy requests. First-pass rates: personal logic 3/5 (60%), accessibility 5/6 (83.3%), theming 3/4 (75%), sorting/filtering 3/4 (75%), layout 1/2 (50%), widget-add 1/2 (50%), out-of-fence 0/2 (0%). All failures ended as clean reverts; seven were 180-second invocation stalls and two boundary prompts self-refused before making a change, producing correct no-op reverts.
+- The dominant actionable pattern was duplicated checking: several invocations made the right scoped edit, ran repository checks themselves, and then failed to exit before 180 seconds. Added runtime rule 9: make the source edit, summarize, return promptly, and leave all checks to the harness. Checkpoint `688a299` and tag `pre-harden-iteration-2-test` were pushed.
+- Reran all five personal-logic cases. Iteration 2 produced 4/5 done (80%): 67.851s, 85.527s, one clean 181.293s generation-stall revert, 72.607s, and 47.362s. Because every P0 class was then at or above 70% and every failure was clean, the Phase 3 stop condition was met after two iterations.
+- Preserved all 30 generated suite/iteration records in the ignored root `hardening-log.json` and replaced the README's placeholder table with final measured rates. Final P0 successful durations range from 38.392s to 85.527s with a 55.596s median.
+
+### Key decisions
+
+- Normalize every request rather than attempting language identification. Swahili's Latin script made the heuristic structurally incapable of covering arbitrary judge phrasing.
+- Treat exact original text as immutable product data: only the child-process instruction is normalized, while the gauntlet continues committing `userText` verbatim.
+- Change the tailor rulebook—not timeouts or gauntlet order—because the logs showed duplicate self-checks were the smallest actionable cause. The remaining personal-logic failure produced no edit, so a third rule or kernel change was not justified.
+
+### Final hardening rates
+
+| Class | Final rate | Dominant failure mode |
+| --- | ---: | --- |
+| Personal logic | 4/5 (80%) | one pre-edit generation timeout |
+| Accessibility | 5/6 (83.3%) | one post-edit invocation timeout |
+| Theming | 3/4 (75%) | one post-edit invocation timeout |
+| Sorting/filtering | 3/4 (75%) | one pre-edit generation timeout |
+| Layout | 1/2 (50%) | one post-edit invocation timeout |
+| Widget add | 1/2 (50%) | one pre-edit generation timeout |
+| Out of fence | 0/2 (0%) | prompt self-refusal became clean no-op revert |
