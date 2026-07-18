@@ -5,3 +5,4 @@ spike-target/
 userland/dist/
 shell/dist/
 hardening-log.json
+sikia_prd.md
