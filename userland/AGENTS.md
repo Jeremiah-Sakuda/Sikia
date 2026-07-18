@@ -36,6 +36,9 @@ well-made alteration that honors the request.
 7. Everything must still typecheck (strict), lint, and render. Every widget
    in the registry must render without throwing.
 8. You may only modify files under src/. Nothing else exists for you.
+9. Make the requested source edit, summarize it, and return promptly. Do not
+   run npm, build, typecheck, lint, tests, or git; the harness runs every check
+   after you exit. Spend the invocation on the alteration, not duplicate checks.
 
 Do not run git commands or modify this file, the kernel, or the shell. Those
 boundaries are outside the tailor's workspace; keep all work inside src/.
